@@ -8,6 +8,8 @@
 
 #include "PerformanceSubsystem.generated.h"
 
+class IWebSocket;
+
 //USTRUCT(BlueprintType)
 //struct FPerformanceData
 //{
@@ -22,9 +24,11 @@
 //	float AvailablePhysical;
 //	float AvailableVirtual;
 //	float UsedVirtual;
-//	float PeakUsedVirtual;
-//	float PeakUsedPhysical;
+//	float PeakUsedVirtual;//	float PeakUsedPhysical;
 //};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoginComplete, bool, bLoginStatus);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSessionCreationCallback);
 
 UCLASS(BlueprintType)
 class UJsonRequestObject : public UObject
@@ -91,11 +95,15 @@ class UPerformanceSubsystem : public UEditorSubsystem
 //	const FPerformanceData GetPOGRPerformanceDump() const;
 
 public:
+	UFUNCTION(BlueprintPure, Category = "POGR User Helper Function")
+	const FString GenerateUniqueUserAssociationId() const;
+
+public:
 	UFUNCTION(BlueprintCallable, Category = "POGRPerformanceSubsystem")
 	void SendMetricsEvent(const UJsonRequestObject* jsonObject, const FString& SessionID);
 
 	UFUNCTION(BlueprintCallable, Category = "POGRPerformanceSubsystem")
-	void SendInitSessionEvent(const FString& ClientId, const FString& BuildId);
+	void SendInitSessionEvent(const FString& ClientId, const FString& BuildId, const FString& AssociationId);
 
 	UFUNCTION(BlueprintCallable, Category = "POGRPerformanceSubsystem")
 	void SendEndSessionEvent(const FString& SessionId, const UJsonRequestObject* JsonObjectValue);
@@ -117,6 +125,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "POGRPerformanceSubsystem")
 	const FString GetAccessTokken() const { return AccessTokken; };
+
+	UFUNCTION(BlueprintPure, Category = "POGRPerformanceSubsystem")
+	const bool GetIsUserLoggedIn() const { return IsLoggedIn; }
 
 	UFUNCTION(BlueprintPure, Category = "POGRPerformanceSubsystem")
 	UJsonRequestObject* GetJsonRequestObject();
@@ -178,7 +189,8 @@ private:
 
 public:
 	void SetSessionId(FString SessionID);
-	void SetAccessTokken(FString RawData);
+	void SetAccessTokken(FString Payload);
+	void SetIsUserLoggedIn(bool LoginStatus);
 
 private:
 	void OnResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedSuccessfully);
@@ -188,6 +200,15 @@ private:
 	FString SessionId = FString();
 	FString AccessTokken = FString();
 	UJsonRequestObject* JsonObject;
+	TSharedPtr<IWebSocket> WebSocket;
+	bool IsLoggedIn;
+
+public:
+	UPROPERTY(BlueprintAssignable)
+	FOnLoginComplete OnLoginComplete;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnSessionCreationCallback OnSessionCreationCallback;
 };
 
 /*

@@ -4,30 +4,14 @@
 #include "WebSockets/Public/WebSocketsModule.h"
 #include "WebSockets/Public/IWebSocketsManager.h"
 #include "JsonUtilities/Public/JsonObjectConverter.h"
+#include "Misc/Guid.h"
 
-
-/**Discarding the Commented Methods as the implementation in them is obsolete for Production*/
-
-//const FPerformanceData UPerformanceSubsystem::GetPOGRPerformanceDump() const
-//{
-//    FPerformanceData POGRPerformanceDump;
-//
-//    FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
-//
-//    POGRPerformanceDump.UsedPhysical = (float)MemoryStats.UsedPhysical / 1024;
-//    POGRPerformanceDump.AvailablePhysical = (float)MemoryStats.AvailablePhysical / 1024;
-//    POGRPerformanceDump.AvailableVirtual = (float)MemoryStats.AvailableVirtual / 1024;
-//    POGRPerformanceDump.UsedVirtual = (float)MemoryStats.UsedVirtual / 1024;
-//    POGRPerformanceDump.PeakUsedPhysical = (float)MemoryStats.PeakUsedPhysical / 1024;
-//    POGRPerformanceDump.PeakUsedVirtual = (float)MemoryStats.PeakUsedVirtual / 1024;
-//
-//    POGRPerformanceDump.CPUBrand = FWindowsPlatformMisc::GetCPUVendor();
-//    POGRPerformanceDump.CPUName = FWindowsPlatformMisc::GetCPUBrand();
-//    POGRPerformanceDump.GPUBrand = FWindowsPlatformMisc::GetPrimaryGPUBrand();
-//    POGRPerformanceDump.OSVersion = FWindowsPlatformMisc::GetOSVersion();
-//
-//    return POGRPerformanceDump;
-//}
+const FString UPerformanceSubsystem::GenerateUniqueUserAssociationId() const
+{
+    FGuid RandomGuid = FGuid::NewGuid();
+    FString AssociationId = FString::Printf(TEXT("%s"), *RandomGuid.ToString());
+    return AssociationId;
+}
 
 void UPerformanceSubsystem::SendMetricsEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
 {
@@ -43,8 +27,8 @@ void UPerformanceSubsystem::SendMetricsEvent(const UJsonRequestObject* jsonObjec
     ///** Update Values in Request Object*/
     //RequestObj->SetStringField("service", "game_server");
     //RequestObj->SetStringField("environment", "production");
-    //RequestObj->SetStringField("CPUBrand", PerformanceData.CPUBrand);
-    //RequestObj->SetStringField("CPUName", PerformanceData.CPUName);
+    //RequestObj->SetStringField("CPUBrand", "i7-10 Gen");
+    ///*RequestObj->SetStringField("CPUName", PerformanceData.CPUName);
     //RequestObj->SetStringField("GPUBrand", PerformanceData.GPUBrand);
     //RequestObj->SetStringField("OSVersion", PerformanceData.OSVersion);
     //RequestObj->SetNumberField("UsedPhysical", PerformanceData.UsedPhysical);
@@ -52,7 +36,7 @@ void UPerformanceSubsystem::SendMetricsEvent(const UJsonRequestObject* jsonObjec
     //RequestObj->SetNumberField("AvailableVirtual", PerformanceData.AvailableVirtual);
     //RequestObj->SetNumberField("UsedVirtual", PerformanceData.UsedVirtual);
     //RequestObj->SetNumberField("PeakUsedVirtual", PerformanceData.PeakUsedVirtual);
-    //RequestObj->SetNumberField("PeakUsedPhysical", PerformanceData.PeakUsedPhysical);
+    //RequestObj->SetNumberField("PeakUsedPhysical", PerformanceData.PeakUsedPhysical);*/
     ///** End of Request Object*/
 
     //// Writing the Data to Object for Request
@@ -72,8 +56,65 @@ void UPerformanceSubsystem::SendMetricsEvent(const UJsonRequestObject* jsonObjec
     //Request->ProcessRequest(); // Once Request Is Ready To Send Just Call This Method.
 }
 
-void UPerformanceSubsystem::SendInitSessionEvent(const FString& ClientId, const FString& BuildId)
+void UPerformanceSubsystem::SendInitSessionEvent(const FString& ClientId, const FString& BuildId, const FString& AssociationId)
 {
+    if (FPOGRModule::IsAvailable())
+        POGRSettings = FPOGRModule::Get().GetSettings();
+    
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+    TSharedRef<FJsonObject> RequestObj = MakeShared<FJsonObject>();
+
+    RequestObj->SetStringField("association_id", AssociationId);
+
+    FString RequestBody;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&RequestBody);
+    FJsonSerializer::Serialize(RequestObj, Writer);
+
+
+    Request->SetURL(POGRSettings->GetInitEndpoint());
+    Request->SetVerb(TEXT("POST"));
+
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("POGR_CLIENT", ClientId);
+    Request->SetHeader("POGR_BUILD", BuildId);
+    
+    Request->SetContentAsString(RequestBody);
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
+        {
+            if (bSuccess && HttpResponse.IsValid() && HttpResponse->GetResponseCode() == EHttpResponseCodes::Type::Ok)
+            {
+                TSharedPtr<FJsonObject> ResponseObj;
+                if (HttpResponse != NULL) {
+                    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
+                    FJsonSerializer::Deserialize(Reader, ResponseObj);
+                }
+
+                if (ResponseObj->HasField("payload"))
+                {
+                    // Get the "payload" object
+                    TSharedPtr<FJsonObject> PayloadObject = ResponseObj->GetObjectField("payload");
+
+                    // Check if the "payload" object contains the "redirect_url" field
+                    if (PayloadObject->HasField("session_id"))
+                    {
+                        FString Session_Id = PayloadObject->GetStringField("session_id");
+
+                        if (!Session_Id.IsEmpty())
+                        {
+                            SetSessionId(Session_Id);
+                            OnSessionCreationCallback.Broadcast();
+                        }
+                    }
+                }
+            }
+            else
+                UE_LOG(LogTemp, Error, TEXT("Failed to send init session event"));
+        }
+    );
+
+    Request->ProcessRequest();
 }
 
 void UPerformanceSubsystem::SendEndSessionEvent(const FString& SessionID, const UJsonRequestObject* JsonObjectValue)
@@ -108,8 +149,17 @@ void UPerformanceSubsystem::SetSessionId(FString SessionID)
     SessionId = SessionID;
 }
 
-void UPerformanceSubsystem::SetAccessTokken(FString RawData)
+void UPerformanceSubsystem::SetAccessTokken(FString Payload)
 {
+    if (!Payload.IsEmpty())
+    {
+        AccessTokken = *Payload;
+    }
+}
+
+void UPerformanceSubsystem::SetIsUserLoggedIn(bool LoginStatus)
+{
+    IsLoggedIn = LoginStatus;
 }
 
 void UPerformanceSubsystem::OnResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedSuccessfully)
@@ -275,7 +325,7 @@ const FString UPerformanceSubsystem::GetPeakUsedPhysicalMemory() const
 void UPerformanceSubsystem::Login()
 {
     FWebSocketsModule& WebSocketModule = FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
-    TSharedPtr<IWebSocket> WebSocket = WebSocketModule.CreateWebSocket(FString("wss://developer-websocket-stage.pogr.io/ws"));
+    WebSocket = WebSocketModule.CreateWebSocket(FString("wss://developer-websocket-stage.pogr.io/ws"));
 
     if (WebSocket.IsValid())
     {
@@ -310,15 +360,47 @@ void UPerformanceSubsystem::OnWebSocketClosed(int32 StatusCode, const FString& R
 
 void UPerformanceSubsystem::OnWebSocketMessage(const FString& Message)
 {
-    UE_LOG(LogTemp, Log, TEXT("Received WebSocket message: %s"), *Message);
+    // Parse the JSON string into a JSON object
+    TSharedPtr<FJsonObject> JsonDataObject;
+    TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(Message);
 
-    // Assuming the received message contains a URL
-    // You can implement your parsing logic here
-    // 
-    //FString ParsedURL = ParseURLFromMessage(Message);
-    //if (!ParsedURL.IsEmpty())
-    //{
-    //    // Open the URL using Unreal's built-in functionality
-    //    FPlatformProcess::LaunchURL(*ParsedURL, nullptr, nullptr);
-    //}
+    if (FJsonSerializer::Deserialize(JsonReader, JsonDataObject))
+    {
+        // Check if the JSON object contains the "payload" field
+        if (JsonDataObject->HasField("payload"))
+        {
+            // Get the "payload" object
+            TSharedPtr<FJsonObject> PayloadObject = JsonDataObject->GetObjectField("payload");
+
+            // Check if the "payload" object contains the "redirect_url" field
+            if (PayloadObject->HasField("redirect_url"))
+            {
+                // Get the value of the "redirect_url" field
+                FString RedirectUrl = PayloadObject->GetStringField("redirect_url");
+
+                if (!RedirectUrl.IsEmpty())
+                    FPlatformProcess::LaunchURL(*RedirectUrl, nullptr, nullptr);
+            }
+            
+            // Check if the "payload" object contains the "access_token" field
+            if (PayloadObject->HasField("access_token"))
+            {
+                // Get the value of the "access_token" field
+                AccessTokken = PayloadObject->GetStringField("access_token");
+
+                if (!AccessTokken.IsEmpty())
+                {
+                    SetAccessTokken(AccessTokken);
+                    SetIsUserLoggedIn(true);
+                    OnLoginComplete.Broadcast(GetIsUserLoggedIn());
+                }
+
+                WebSocket->Close();
+            }
+        }
+        else
+            UE_LOG(LogTemp, Warning, TEXT("JSON object does not contain the 'payload' field"));
+    }
+    else
+        UE_LOG(LogTemp, Error, TEXT("Failed to deserialize JSON string"));
 }
