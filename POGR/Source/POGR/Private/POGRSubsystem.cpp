@@ -9,26 +9,13 @@
 #include "Json.h"
 #include "POGRSettings.h"
 #include "POGRJsonObject.h"
+#include "Async/TaskGraphInterfaces.h"
 
 const FString UPOGRSubsystem::GenerateUniqueUserAssociationId() const
 {
     FGuid RandomGuid = FGuid::NewGuid();
     FString AssociationId = FString::Printf(TEXT("%s"), *RandomGuid.ToString());
     return AssociationId;
-}
-
-void UPOGRSubsystem::SendGameMetricsEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
-{
-    if (!POGRSettings)
-    {
-        POGRSettings = FPOGRModule::Get().GetSettings();
-    }
-
-    const auto JsonObjectData = jsonObject->GetJsonRequestObject();
-    JsonObjectData->SetStringField(FString("service"), FString("game_server"));
-    JsonObjectData->SetStringField(FString("environment"), FString("production"));
-
-    SendHttpRequest(POGRSettings->GetMetricsEndpoint(), jsonObject, SessionID);
 }
 
 void UPOGRSubsystem::CreateSession(const FString& ClientId, const FString& BuildId, const FString& AssociationId)
@@ -122,6 +109,23 @@ void UPOGRSubsystem::DestroySession(const FString& SessionID)
     Request->ProcessRequest();
 }
 
+void UPOGRSubsystem::SendGameMetricsEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
+{
+    if (!POGRSettings)
+    {
+        POGRSettings = FPOGRModule::Get().GetSettings();
+    }
+
+    const auto JsonObjectData = jsonObject->GetJsonRequestObject();
+    JsonObjectData->SetStringField(FString("service"), FString("game_server"));
+    JsonObjectData->SetStringField(FString("environment"), FString("production"));
+
+    FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
+    {
+        SendHttpRequest(POGRSettings->GetMetricsEndpoint(), jsonObject, SessionID);
+    }, TStatId(), nullptr, ENamedThreads::AnyThread);
+}
+
 void UPOGRSubsystem::SendGameUserEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
 {
     if (!POGRSettings)
@@ -130,7 +134,10 @@ void UPOGRSubsystem::SendGameUserEvent(const UJsonRequestObject* jsonObject, con
             POGRSettings = FPOGRModule::Get().GetSettings();
     }
 
-    SendHttpRequest(POGRSettings->GetEventEndpoint(), jsonObject, SessionID);
+    FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
+    {
+        SendHttpRequest(POGRSettings->GetEventEndpoint(), jsonObject, SessionID);
+    }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
 void UPOGRSubsystem::SendGameDataEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
@@ -141,7 +148,10 @@ void UPOGRSubsystem::SendGameDataEvent(const UJsonRequestObject* jsonObject, con
             POGRSettings = FPOGRModule::Get().GetSettings();
     }
 
-    SendHttpRequest(POGRSettings->GetDataEndpoint(), jsonObject, SessionID);
+    FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
+    {
+        SendHttpRequest(POGRSettings->GetDataEndpoint(), jsonObject, SessionID);
+    }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
 void UPOGRSubsystem::SendGameLogsEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
@@ -152,7 +162,10 @@ void UPOGRSubsystem::SendGameLogsEvent(const UJsonRequestObject* jsonObject, con
             POGRSettings = FPOGRModule::Get().GetSettings();
     }
 
-    SendHttpRequest(POGRSettings->GetLogsEndpoint(), jsonObject, SessionID);
+    FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
+    {
+        SendHttpRequest(POGRSettings->GetLogsEndpoint(), jsonObject, SessionID);
+    }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
 void UPOGRSubsystem::SendGamePerformanceEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
@@ -163,7 +176,10 @@ void UPOGRSubsystem::SendGamePerformanceEvent(const UJsonRequestObject* jsonObje
             POGRSettings = FPOGRModule::Get().GetSettings();
     }
 
-    SendHttpRequest(POGRSettings->GetMonitorEndpoint(), jsonObject, SessionID);
+    FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
+    {
+        SendHttpRequest(POGRSettings->GetMonitorEndpoint(), jsonObject, SessionID);
+    }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
 UJsonRequestObject* UPOGRSubsystem::GetJsonRequestObject()
