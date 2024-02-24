@@ -8,7 +8,7 @@
 #include "EditorUtilityWidgetBlueprint.h"
 #include "EditorUtilitySubsystem.h"
 #include "EditorAssetLibrary.h"
-#include "POGRUISubsystem.h"
+#include "POGRSubsystem.h"
 
 #if WITH_EDITOR
 #include "ISettingsModule.h"
@@ -134,7 +134,7 @@ void FPOGRModule::SpawnPluginUtilityWidget()
 		UEditorUtilityWidgetBlueprint* EditorWidget = Cast<UEditorUtilityWidgetBlueprint>(Blueprint);
 		if (EditorWidget) {
 			UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-			UPOGRUISubsystem* POGRUISubsystem = GEditor->GetEditorSubsystem<UPOGRUISubsystem>();
+			UPOGRSubsystem* POGRUISubsystem = GEditor->GetEditorSubsystem<UPOGRSubsystem>();
 			FName TabId = FName();
 			EditorUtilitySubsystem->SpawnAndRegisterTabAndGetID(EditorWidget, TabId);
 			POGRUISubsystem->SetTabId(TabId);
