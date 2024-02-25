@@ -61,11 +61,11 @@ void UPOGRSubsystem::CreateSession(const FString& ClientId, const FString& Build
                     // Check if the "payload" object contains the "redirect_url" field
                     if (PayloadObject->HasField("session_id"))
                     {
-                        FString Session_Id = PayloadObject->GetStringField("session_id");
+                        FString SessionId = PayloadObject->GetStringField("session_id");
 
-                        if (!Session_Id.IsEmpty())
+                        if (!SessionId.IsEmpty())
                         {
-                            SetSessionId(Session_Id);
+                            SetSessionId(SessionId);
                             bIsSessionActive = true;
                             OnSessionCreationCallback.Broadcast();
                         }
@@ -73,14 +73,14 @@ void UPOGRSubsystem::CreateSession(const FString& ClientId, const FString& Build
                 }
             }
             else
-                UE_LOG(LogTemp, Error, TEXT("Failed to send init session event"));
+                UE_LOG(LogTemp, Error, TEXT("Failed to Create Session"));
         }
     );
 
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::DestroySession(const FString& SessionID)
+void UPOGRSubsystem::DestroySession(const FString& SessionId)
 {
     if (!POGRSettings)
     {
@@ -94,7 +94,7 @@ void UPOGRSubsystem::DestroySession(const FString& SessionID)
     Request->SetVerb(TEXT("POST"));
 
     Request->SetHeader("Content-Type", "application/json");
-    Request->SetHeader("INTAKE_SESSION_ID", SessionID);
+    Request->SetHeader("INTAKE_SESSION_ID", SessionId);
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
@@ -109,7 +109,7 @@ void UPOGRSubsystem::DestroySession(const FString& SessionID)
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::SendGameMetricsEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
+void UPOGRSubsystem::SendGameMetricsEvent(const UJsonRequestObject* jsonObject, const FString& SessionId)
 {
     if (!POGRSettings)
     {
@@ -122,11 +122,11 @@ void UPOGRSubsystem::SendGameMetricsEvent(const UJsonRequestObject* jsonObject, 
 
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
     {
-        SendHttpRequest(POGRSettings->GetMetricsEndpoint(), jsonObject, SessionID);
+        SendHttpRequest(POGRSettings->GetMetricsEndpoint(), jsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
-void UPOGRSubsystem::SendGameUserEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
+void UPOGRSubsystem::SendGameUserEvent(const UJsonRequestObject* jsonObject, const FString& SessionId)
 {
     if (!POGRSettings)
     {
@@ -136,11 +136,11 @@ void UPOGRSubsystem::SendGameUserEvent(const UJsonRequestObject* jsonObject, con
 
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
     {
-        SendHttpRequest(POGRSettings->GetEventEndpoint(), jsonObject, SessionID);
+        SendHttpRequest(POGRSettings->GetEventEndpoint(), jsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
-void UPOGRSubsystem::SendGameDataEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
+void UPOGRSubsystem::SendGameDataEvent(const UJsonRequestObject* jsonObject, const FString& SessionId)
 {
     if (!POGRSettings)
     {
@@ -150,11 +150,11 @@ void UPOGRSubsystem::SendGameDataEvent(const UJsonRequestObject* jsonObject, con
 
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
     {
-        SendHttpRequest(POGRSettings->GetDataEndpoint(), jsonObject, SessionID);
+        SendHttpRequest(POGRSettings->GetDataEndpoint(), jsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
-void UPOGRSubsystem::SendGameLogsEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
+void UPOGRSubsystem::SendGameLogsEvent(const UJsonRequestObject* jsonObject, const FString& SessionId)
 {
     if (!POGRSettings)
     {
@@ -164,11 +164,11 @@ void UPOGRSubsystem::SendGameLogsEvent(const UJsonRequestObject* jsonObject, con
 
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
     {
-        SendHttpRequest(POGRSettings->GetLogsEndpoint(), jsonObject, SessionID);
+        SendHttpRequest(POGRSettings->GetLogsEndpoint(), jsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
-void UPOGRSubsystem::SendGamePerformanceEvent(const UJsonRequestObject* jsonObject, const FString& SessionID)
+void UPOGRSubsystem::SendGamePerformanceEvent(const UJsonRequestObject* jsonObject, const FString& SessionId)
 {
     if (!POGRSettings)
     {
@@ -178,7 +178,7 @@ void UPOGRSubsystem::SendGamePerformanceEvent(const UJsonRequestObject* jsonObje
 
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
     {
-        SendHttpRequest(POGRSettings->GetMonitorEndpoint(), jsonObject, SessionID);
+        SendHttpRequest(POGRSettings->GetMonitorEndpoint(), jsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
@@ -189,7 +189,20 @@ UJsonRequestObject* UPOGRSubsystem::GetJsonRequestObject()
     return JsonObject;
 }
 
-void UPOGRSubsystem::SendHttpRequest(const FString& URL, const UJsonRequestObject* jsonObject, const FString& SessionID)
+void UPOGRSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+
+}
+
+void UPOGRSubsystem::Deinitialize()
+{
+    if (IsSessionActive())
+    {
+        DestroySession(GetSessionId());
+    }
+}
+
+void UPOGRSubsystem::SendHttpRequest(const FString& URL, const UJsonRequestObject* jsonObject, const FString& SessionId)
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
     TSharedRef<FJsonObject> RequestObj = MakeShared<FJsonObject>();
@@ -202,16 +215,16 @@ void UPOGRSubsystem::SendHttpRequest(const FString& URL, const UJsonRequestObjec
     Request->SetVerb(TEXT("POST"));
 
     Request->SetHeader("Content-Type", "application/json");
-    Request->SetHeader("INTAKE_SESSION_ID", SessionID);
+    Request->SetHeader("INTAKE_SESSION_ID", SessionId);
     Request->SetContentAsString(RequestBody);
     Request->OnProcessRequestComplete().BindUObject(this, &UPOGRSubsystem::OnResponseReceived);
 
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::SetSessionId(FString SessionID)
+void UPOGRSubsystem::SetSessionId(FString SessionId)
 {
-    SessionId = SessionID;
+    ActiveSessionId = SessionId;
 }
 
 void UPOGRSubsystem::SetAccessTokken(FString Payload)

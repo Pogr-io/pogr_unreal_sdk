@@ -33,7 +33,7 @@ public:
 	void Login();
 
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
-	void SendGameMetricsEvent(const UJsonRequestObject* jsonObject, const FString& SessionID);
+	void SendGameMetricsEvent(const UJsonRequestObject* jsonObject, const FString& SessionId);
 
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
 	void CreateSession(const FString& ClientId, const FString& BuildId, const FString& AssociationId);
@@ -55,7 +55,7 @@ public:
 
 public:
 	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
-	const FString GetSessionId() const { return SessionId; };
+	const FString GetSessionId() const { return ActiveSessionId; };
 
 	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
 	const FString GetAccessTokken() const { return AccessTokken; };
@@ -69,18 +69,22 @@ public:
 	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
 	const bool IsSessionActive() const { return bIsSessionActive; }
 
+protected:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+
 private:
-	void SendHttpRequest(const FString& URL, const UJsonRequestObject* jsonObject, const FString& SessionID);
+	void SendHttpRequest(const FString& URL, const UJsonRequestObject* jsonObject, const FString& SessionId);
 
 private:
 	void OnResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedSuccessfully);
 
 private:
-	void SetSessionId(FString SessionID);
+	void SetSessionId(FString SessionId);
 	void SetAccessTokken(FString Payload);
 	void SetIsUserLoggedIn(bool LoginStatus);
 /*
-    * Login Callback Helper Function
+    * Login Callback Helper Function *
 */
 private:
 	void OnWebSocketConnected();
@@ -103,7 +107,7 @@ private:
 
 private:
 	const class UPOGREndpointSettings* POGRSettings;
-	FString SessionId = FString();
+	FString ActiveSessionId = FString();
 	FString AccessTokken = FString();
 	UJsonRequestObject* JsonObject;
 	TSharedPtr<IWebSocket> WebSocket;
