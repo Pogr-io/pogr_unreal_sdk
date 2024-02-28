@@ -23,10 +23,16 @@ public:
 	void SetNumberField(const FString& FieldName, double Number);
 
 	UFUNCTION(BlueprintCallable, Category = "POGR|Json")
+	void SetArrayField(const FString& FieldName, const TArray<FString>& Array);
+
+	UFUNCTION(BlueprintCallable, Category = "POGR|Json")
 	void SetObjectField(const FString& FieldName, const UJsonRequestObject* SubJsonObject);
 
 public:
 	const TSharedPtr<FJsonObject> GetJsonRequestObject() const { return JsonObject; }
+
+private:
+	TArray<TSharedPtr<FJsonValue>> StringArrayToJsonValues(const TArray<FString>& StringArray);
 
 private:
 	TSharedPtr<FJsonObject> JsonObject;

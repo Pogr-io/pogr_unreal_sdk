@@ -35,6 +35,16 @@ void UJsonRequestObject::SetNumberField(const FString& FieldName, double Number)
     JsonObject->SetNumberField(FieldName, Number);
 }
 
+void UJsonRequestObject::SetArrayField(const FString& FieldName, const TArray<FString>& Array)
+{
+    if (FieldName.IsEmpty())
+    {
+        return;
+    }
+
+    JsonObject->SetArrayField(FieldName, StringArrayToJsonValues(Array));
+}
+
 void UJsonRequestObject::SetObjectField(const FString& FieldName, const UJsonRequestObject* SubJsonObject)
 {
     if (FieldName.IsEmpty())
@@ -49,4 +59,14 @@ void UJsonRequestObject::SetObjectField(const FString& FieldName, const UJsonReq
         FJsonSerializer::Serialize(SubJsonObject->GetJsonRequestObject().ToSharedRef(), Writer);
         JsonObject->SetStringField(FieldName, SubJsonString);
     }
+}
+
+TArray<TSharedPtr<FJsonValue>> UJsonRequestObject::StringArrayToJsonValues(const TArray<FString>& StringArray)
+{
+    TArray<TSharedPtr<FJsonValue>> JsonValues;
+    for (const FString& StringValue : StringArray)
+    {
+        JsonValues.Add(MakeShared<FJsonValueString>(StringValue));
+    }
+    return JsonValues;
 }

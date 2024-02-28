@@ -21,6 +21,9 @@ class UPOGRSubsystem : public UEditorSubsystem
 {
     GENERATED_BODY()
 
+public:
+	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
+	void SendTestEvent(const FGameSystemMetrics& GamePerformanceMonitor);
 /*
     * POGR Subsystem Intake Helper Function *
 */
@@ -33,25 +36,58 @@ public:
 	void Login();
 
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
-	void SendGameMetricsEvent(const UJsonRequestObject* jsonObject, const FString& SessionId);
-
-	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
 	void CreateSession(const FString& ClientId, const FString& BuildId, const FString& AssociationId);
 
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
 	void DestroySession(const FString& SessionID);
 
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
-	void SendGameUserEvent(const UJsonRequestObject* jsonObject, const FString& SessionId);
+	void SendGameMetricsEvent(const FGameMetrics& GameMertrics, const FString& SessionId);
+
+	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
+	void SendGameUserEvent(const FGameEvent& GameEvent, const FString& SessionId);
 
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
 	void SendGameDataEvent(const UJsonRequestObject* jsonObject, const FString& SessionId);
 
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
-	void SendGameLogsEvent(const UJsonRequestObject* jsonObject, const FString& SessionId);
+	void SendGameLogsEvent(const FGameLog& GameLog, const FString& SessionId);
 
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
-	void SendGamePerformanceEvent(const UJsonRequestObject* jsonObject, const FString& SessionId);
+	void SendGamePerformanceEvent(const FGameSystemMetrics& GamePerformanceMonitor, const FString& SessionId);
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem | Game Events")
+	void SetGameEventAttributes(
+		const FString& Event, const FString& SubEvent,
+		const FString& EventType, const FString& EventFlag,
+		const FString& EventKey, const FString& PlayerId,
+		const FString& AchivementName, FGameEvent& GameEvent
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem | Game Events")
+	void SetGameLogsAttributes(
+		const FString& Service, const FString& Environment,
+		const FString& Severity, const FString& Type,
+		const FString& Log, const FString& User_id,
+		const FString& Timestamp, const FString& Ip_address,
+		const FString& System, const FString& Action, FGameLog& GameLog
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem | Game Events")
+	void SetGameMetricsAttributes(
+		const FString& Service, const FString& Environment,
+		const int32& Players_online, const float& Average_latency_ms,
+		const float& Server_load_percentage, const FString& Location,
+		const FString& Game_mode, FGameMetrics& GameMetrics
+	);
+
+	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem | Game Events")
+	void SetGameMonitorAttributes(
+		const float& CPU_usage, const float& Memory_usage,
+		const TArray<FString>& Dlls_loaded, const FString& Graphics_quality,
+		FGameSystemMetrics& GamePerformanceMonitor
+	);
 
 public:
 	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
@@ -91,6 +127,7 @@ private:
 	void OnWebSocketError(const FString& Error);
 	void OnWebSocketClosed(int32 StatusCode, const FString& Reason, bool bWasClean);
 	void OnWebSocketMessage(const FString& Message);
+
 /*
     * POGR UI Helper Function *
 */

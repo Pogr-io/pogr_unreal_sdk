@@ -10,6 +10,38 @@
 #include "POGRSettings.h"
 #include "POGRJsonObject.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Helpers/POGRGameEvent.h"
+#include "Helpers/POGRGameLogs.h"
+#include "Helpers/POGRGameMetrics.h"
+#include "Helpers/POGRGameMonitor.h"
+
+void UPOGRSubsystem::SendTestEvent(const FGameSystemMetrics& GamePerformanceMonitor)
+{
+    UJsonRequestObject* jsonObject = this->GetJsonRequestObject();
+    jsonObject->SetNumberField(FString("cpu_usage"), GamePerformanceMonitor.cpu_usage);
+    jsonObject->SetNumberField(FString("memory_usage"), GamePerformanceMonitor.memory_usage);
+    jsonObject->SetArrayField(FString("dlls_loaded"), GamePerformanceMonitor.dlls_loaded);
+
+    UJsonRequestObject* SettingsObject = this->GetJsonRequestObject();
+    SettingsObject->SetStringField(FString("graphics_quality"), GamePerformanceMonitor.settings.graphics_quality);
+    jsonObject->GetJsonRequestObject()->SetObjectField(FString("Data"), SettingsObject->GetJsonRequestObject());
+
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+    TSharedRef<FJsonObject> RequestObj = MakeShared<FJsonObject>();
+
+    FString RequestBody;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&RequestBody);
+    FJsonSerializer::Serialize(jsonObject->GetJsonRequestObject().ToSharedRef(), Writer);
+
+    Request->SetURL(FString("https://jsonplaceholder.typicode.com/posts"));
+    Request->SetVerb(TEXT("POST"));
+
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetContentAsString(RequestBody);
+    Request->OnProcessRequestComplete().BindUObject(this, &UPOGRSubsystem::OnResponseReceived);
+
+    Request->ProcessRequest();
+}
 
 const FString UPOGRSubsystem::GenerateUniqueUserAssociationId() const
 {
@@ -109,24 +141,38 @@ void UPOGRSubsystem::DestroySession(const FString& SessionId)
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::SendGameMetricsEvent(const UJsonRequestObject* jsonObject, const FString& SessionId)
+void UPOGRSubsystem::SendGameMetricsEvent(const FGameMetrics& GameMertrics, const FString& SessionId)
 {
     if (!POGRSettings)
     {
         POGRSettings = FPOGRModule::Get().GetSettings();
     }
 
-    const auto JsonObjectData = jsonObject->GetJsonRequestObject();
-    JsonObjectData->SetStringField(FString("service"), FString("game_server"));
-    JsonObjectData->SetStringField(FString("environment"), FString("production"));
+    static FCriticalSection Mutex;
 
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
     {
-        SendHttpRequest(POGRSettings->GetMetricsEndpoint(), jsonObject, SessionId);
+       FScopeLock Lock(&Mutex);
+       UJsonRequestObject* JsonObject = this->GetJsonRequestObject();
+       JsonObject->SetStringField(FString("service"), GameMertrics.service);
+       JsonObject->SetStringField(FString("environment"), GameMertrics.environment);
+
+       UJsonRequestObject* MetricsData = this->GetJsonRequestObject();
+       MetricsData->SetNumberField(FString("players_online"), GameMertrics.metrics.players_online);
+       MetricsData->SetNumberField(FString("average_latency_ms"), GameMertrics.metrics.average_latency_ms);
+       MetricsData->SetNumberField(FString("server_load_percentage"), GameMertrics.metrics.server_load_percentage);
+       JsonObject->GetJsonRequestObject()->SetObjectField(FString("metrics"), MetricsData->GetJsonRequestObject());
+
+       UJsonRequestObject* TagsData = this->GetJsonRequestObject();
+       TagsData->SetStringField(FString("location"), GameMertrics.tags.location);
+       TagsData->SetStringField(FString("game_mode"), GameMertrics.tags.game_mode);
+       JsonObject->GetJsonRequestObject()->SetObjectField(FString("tags"), TagsData->GetJsonRequestObject());
+
+       SendHttpRequest(POGRSettings->GetMetricsEndpoint(), JsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
-void UPOGRSubsystem::SendGameUserEvent(const UJsonRequestObject* jsonObject, const FString& SessionId)
+void UPOGRSubsystem::SendGameUserEvent(const FGameEvent& GameEvent, const FString& SessionId)
 {
     if (!POGRSettings)
     {
@@ -134,9 +180,24 @@ void UPOGRSubsystem::SendGameUserEvent(const UJsonRequestObject* jsonObject, con
             POGRSettings = FPOGRModule::Get().GetSettings();
     }
 
+    static FCriticalSection Mutex;
+
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
     {
-        SendHttpRequest(POGRSettings->GetEventEndpoint(), jsonObject, SessionId);
+       FScopeLock Lock(&Mutex);
+       UJsonRequestObject* JsonObject = this->GetJsonRequestObject();
+       JsonObject->SetStringField("event", GameEvent.event);
+       JsonObject->SetStringField("sub_event", GameEvent.sub_event);
+       JsonObject->SetStringField("event_type", GameEvent.event_type);
+       JsonObject->SetStringField("event_flag", GameEvent.event_flag);
+       JsonObject->SetStringField("event_key", GameEvent.event_key);
+
+       UJsonRequestObject* EventData = this->GetJsonRequestObject();
+       EventData->SetStringField("player_id", GameEvent.event_data.player_id);
+       EventData->SetStringField("achievement_name", GameEvent.event_data.achievement_name);
+       JsonObject->GetJsonRequestObject()->SetObjectField("event_data", EventData->GetJsonRequestObject());
+
+       SendHttpRequest(POGRSettings->GetEventEndpoint(), JsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
@@ -150,11 +211,11 @@ void UPOGRSubsystem::SendGameDataEvent(const UJsonRequestObject* jsonObject, con
 
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
     {
-        SendHttpRequest(POGRSettings->GetDataEndpoint(), jsonObject, SessionId);
+       SendHttpRequest(POGRSettings->GetDataEndpoint(), jsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
-void UPOGRSubsystem::SendGameLogsEvent(const UJsonRequestObject* jsonObject, const FString& SessionId)
+void UPOGRSubsystem::SendGameLogsEvent(const FGameLog& GameLog, const FString& SessionId)
 {
     if (!POGRSettings)
     {
@@ -162,13 +223,34 @@ void UPOGRSubsystem::SendGameLogsEvent(const UJsonRequestObject* jsonObject, con
             POGRSettings = FPOGRModule::Get().GetSettings();
     }
 
+    static FCriticalSection Mutex;
+
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
     {
-        SendHttpRequest(POGRSettings->GetLogsEndpoint(), jsonObject, SessionId);
+        FScopeLock Lock(&Mutex);
+        UJsonRequestObject* JsonObject = this->GetJsonRequestObject();
+        JsonObject->SetStringField(FString("service"), GameLog.service);
+        JsonObject->SetStringField(FString("environment"), GameLog.environment);
+        JsonObject->SetStringField(FString("severity"), GameLog.severity);
+        JsonObject->SetStringField(FString("type"), GameLog.type);
+        JsonObject->SetStringField(FString("log"), GameLog.log);
+
+        UJsonRequestObject* DataObject = this->GetJsonRequestObject();
+        DataObject->SetStringField(FString("user_id"), GameLog.data.user_id);
+        DataObject->SetStringField(FString("timestamp"), GameLog.data.timestamp);
+        DataObject->SetStringField(FString("ip_address"), GameLog.data.ip_address);
+        JsonObject->GetJsonRequestObject()->SetObjectField(FString("Data"), DataObject->GetJsonRequestObject());
+
+        UJsonRequestObject* TagsObject = this->GetJsonRequestObject();
+        TagsObject->SetStringField(FString("system"), GameLog.tags.system);
+        TagsObject->SetStringField(FString("action"), GameLog.tags.action);
+        JsonObject->GetJsonRequestObject()->SetObjectField(FString("tags"), TagsObject->GetJsonRequestObject());
+
+        SendHttpRequest(POGRSettings->GetLogsEndpoint(), JsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
-void UPOGRSubsystem::SendGamePerformanceEvent(const UJsonRequestObject* jsonObject, const FString& SessionId)
+void UPOGRSubsystem::SendGamePerformanceEvent(const FGameSystemMetrics& GamePerformanceMonitor, const FString& SessionId)
 {
     if (!POGRSettings)
     {
@@ -176,10 +258,94 @@ void UPOGRSubsystem::SendGamePerformanceEvent(const UJsonRequestObject* jsonObje
             POGRSettings = FPOGRModule::Get().GetSettings();
     }
 
+    static FCriticalSection Mutex;
+
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
     {
-        SendHttpRequest(POGRSettings->GetMonitorEndpoint(), jsonObject, SessionId);
+       FScopeLock Lock(&Mutex);
+       UJsonRequestObject* JsonObject = this->GetJsonRequestObject();
+       JsonObject->SetNumberField(FString("cpu_usage"), GamePerformanceMonitor.cpu_usage);
+       JsonObject->SetNumberField(FString("memory_usage"), GamePerformanceMonitor.memory_usage);
+       JsonObject->SetArrayField(FString("dlls_loaded"), GamePerformanceMonitor.dlls_loaded);
+
+       UJsonRequestObject* SettingsObject = this->GetJsonRequestObject();
+       SettingsObject->SetStringField(FString("graphics_quality"), GamePerformanceMonitor.settings.graphics_quality);
+       JsonObject->GetJsonRequestObject()->SetObjectField(FString("Data"), SettingsObject->GetJsonRequestObject());
+
+       SendHttpRequest(POGRSettings->GetMonitorEndpoint(), JsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
+}
+
+void UPOGRSubsystem::SetGameEventAttributes(
+    const FString& Event, const FString& SubEvent,
+    const FString& EventType, const FString& EventFlag,
+    const FString& EventKey, const FString& PlayerId,
+    const FString& AchivementName, FGameEvent& GameEvent)
+{
+    FGameEvent GameEventData;
+    GameEventData.event = Event;
+    GameEventData.sub_event = SubEvent;
+    GameEventData.event_type = EventType;
+    GameEventData.event_flag = EventFlag;
+    GameEventData.event_key = EventKey;
+    GameEventData.event_data.player_id = PlayerId;
+    GameEventData.event_data.achievement_name = AchivementName;
+
+    GameEvent = GameEventData;
+}
+
+void UPOGRSubsystem::SetGameLogsAttributes(
+    const FString& Service, const FString& Environment,
+    const FString& Severity, const FString& Type,
+    const FString& Log, const FString& User_id,
+    const FString& Timestamp, const FString& Ip_address,
+    const FString& System, const FString& Action, FGameLog& GameLog)
+{
+    FGameLog GameLogData;
+    GameLogData.service = Service;
+    GameLogData.environment = Environment;
+    GameLogData.severity = Severity;
+    GameLogData.type = Type;
+    GameLogData.log = Log;
+    GameLogData.data.user_id = User_id;
+    GameLogData.data.timestamp = Timestamp;
+    GameLogData.data.ip_address = Ip_address;
+    GameLogData.tags.system = System;
+    GameLogData.tags.action = Action;
+
+    GameLog = GameLogData;
+}
+
+void UPOGRSubsystem::SetGameMetricsAttributes(
+    const FString& Service, const FString& Environment,
+    const int32& Players_online, const float& Average_latency_ms,
+    const float& Server_load_percentage, const FString& Location,
+    const FString& Game_mode, FGameMetrics& GameMetrics)
+{
+    FGameMetrics GameMetricsData;
+    GameMetricsData.service = Service;
+    GameMetricsData.environment = Environment;
+    GameMetricsData.metrics.players_online = Players_online;
+    GameMetricsData.metrics.average_latency_ms = Average_latency_ms;
+    GameMetricsData.metrics.server_load_percentage = Server_load_percentage;
+    GameMetricsData.tags.location = Location;
+    GameMetricsData.tags.game_mode = Game_mode;
+
+    GameMetrics = GameMetricsData;
+}
+
+void UPOGRSubsystem::SetGameMonitorAttributes(
+    const float& CPU_usage, const float& Memory_usage,
+    const TArray<FString>& Dlls_loaded, const FString& Graphics_quality,
+    FGameSystemMetrics& GamePerformanceMonitor)
+{
+    FGameSystemMetrics GameSystemMetrics;
+    GameSystemMetrics.cpu_usage = CPU_usage;
+    GameSystemMetrics.memory_usage = Memory_usage;
+    GameSystemMetrics.dlls_loaded = Dlls_loaded;
+    GameSystemMetrics.settings.graphics_quality = Graphics_quality;
+
+    GamePerformanceMonitor = GameSystemMetrics;
 }
 
 UJsonRequestObject* UPOGRSubsystem::GetJsonRequestObject()
