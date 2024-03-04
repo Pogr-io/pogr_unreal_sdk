@@ -5,7 +5,7 @@
 #include "PerformanceSubsystem.generated.h"
 
 UCLASS(BlueprintType)
-class UPerformanceSubsystem : public UEditorSubsystem
+class UPerformanceSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 

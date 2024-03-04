@@ -134,7 +134,7 @@ void FPOGRModule::SpawnPluginUtilityWidget()
 		UEditorUtilityWidgetBlueprint* EditorWidget = Cast<UEditorUtilityWidgetBlueprint>(Blueprint);
 		if (EditorWidget) {
 			UEditorUtilitySubsystem* EditorUtilitySubsystem = GEditor->GetEditorSubsystem<UEditorUtilitySubsystem>();
-			UPOGRSubsystem* POGRUISubsystem = GEditor->GetEditorSubsystem<UPOGRSubsystem>();
+			UPOGRUISubsystem* POGRUISubsystem = GEditor->GetEditorSubsystem<UPOGRUISubsystem>();
 			FName TabId = FName();
 			EditorUtilitySubsystem->SpawnAndRegisterTabAndGetID(EditorWidget, TabId);
 			POGRUISubsystem->SetTabId(TabId);

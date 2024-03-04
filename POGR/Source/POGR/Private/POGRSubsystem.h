@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "EditorSubsystem.h"
+#include "Subsystems/EngineSubsystem.h"
 #include "POGRSubsystem.generated.h"
 
 class IWebSocket;
@@ -13,17 +14,14 @@ class IHttpResponse;
 typedef TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> FHttpRequestPtr;
 typedef TSharedPtr<IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
 
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoginComplete, bool, bLoginStatus);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSessionCreationCallback);
 
 UCLASS()
-class UPOGRSubsystem : public UEditorSubsystem
+class UPOGRSubsystem : public UEngineSubsystem
 {
     GENERATED_BODY()
-
-public:
-	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
-	void SendTestEvent(const FGameSystemMetrics& GamePerformanceMonitor);
 /*
     * POGR Subsystem Intake Helper Function *
 */
@@ -41,6 +39,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
 	void DestroySession(const FString& SessionID);
 
+public:
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
 	void SendGameMetricsEvent(const FGameMetrics& GameMertrics, const FString& SessionId);
 
@@ -128,20 +127,6 @@ private:
 	void OnWebSocketClosed(int32 StatusCode, const FString& Reason, bool bWasClean);
 	void OnWebSocketMessage(const FString& Message);
 
-/*
-    * POGR UI Helper Function *
-*/
-public:
-    UFUNCTION(BlueprintCallable, Category = "POGR UI Subsystem")
-    void SetTabId(FName TabId);
-
-private:
-    UFUNCTION(BlueprintCallable, Category = "POGR UI Subsystem")
-    const FName GetTabId() const { return WidgetTabId; }
-
-private:
-    FName WidgetTabId;
-
 private:
 	const class UPOGREndpointSettings* POGRSettings;
 	FString ActiveSessionId = FString();
@@ -150,11 +135,31 @@ private:
 	TSharedPtr<IWebSocket> WebSocket;
 	bool IsLoggedIn;
 	bool bIsSessionActive;
-
 public:
 	UPROPERTY(BlueprintAssignable)
 	FOnLoginComplete OnLoginComplete;
 
 	UPROPERTY(BlueprintAssignable)
 	FOnSessionCreationCallback OnSessionCreationCallback;
+};
+
+UCLASS()
+class UPOGRUISubsystem : public UEditorSubsystem
+{
+	GENERATED_BODY()
+/*
+	* POGR UI Helper Function *
+*/
+#if WITH_EDITOR
+public:
+	UFUNCTION(BlueprintCallable, Category = "POGR UI Subsystem")
+	void SetTabId(FName TabId);
+
+private:
+	UFUNCTION(BlueprintCallable, Category = "POGR UI Subsystem")
+	const FName GetTabId() const { return WidgetTabId; }
+
+private:
+	FName WidgetTabId;
+#endif
 };
