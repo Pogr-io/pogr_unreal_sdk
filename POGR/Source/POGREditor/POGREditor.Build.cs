@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class POGR : ModuleRules
+public class POGREditor : ModuleRules
 {
-	public POGR(ReadOnlyTargetRules Target) : base(Target)
+	public POGREditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
@@ -20,12 +20,12 @@ public class POGR : ModuleRules
 				// ... add other private include paths required here ...
 			}
 			);
-			
-		
-		PublicDependencyModuleNames.AddRange(
+
+        PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core"
+				"Core",
+				"POGR"
 				// ... add other public dependencies that you statically link with here ...
 			}
 			);
@@ -37,14 +37,17 @@ public class POGR : ModuleRules
 				"Projects",
 				"InputCore",
 				"EditorFramework",
+				"UnrealEd",
 				"ToolMenus",
 				"CoreUObject",
 				"Engine",
 				"Slate",
 				"SlateCore",
-                "HTTP",
-                "Json",
-                "WebSockets"
+                "EditorSubsystem",
+                "Blutility",
+				"EditorScriptingUtilities",
+                "BlueprintFileUtils",
+                "UMGEditor"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
@@ -56,5 +59,5 @@ public class POGR : ModuleRules
 				// ... add any modules that your module loads dynamically here ...
 			}
 			);
-	}
+    }
 }

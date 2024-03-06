@@ -6,9 +6,6 @@
 #include "Modules/ModuleManager.h"
 #include "POGRSettings.h"
 
-class FToolBarBuilder;
-class FMenuBuilder;
-
 class FPOGRModule : public IModuleInterface
 {
 public:
@@ -38,9 +35,6 @@ public:
 	{
 		return FModuleManager::Get().IsModuleLoaded("POGR");
 	}
-	
-	/** This function will be bound to Command. */
-	void PluginButtonClicked();
 
 	/**POGR Developer Settings for the Endpoint*/
 	void RegisterPOGREndpointSettings();
@@ -50,12 +44,5 @@ public:
 	UPOGREndpointSettings* GetSettings() const;
 
 private:
-	void RegisterMenus();
-
-private:
-	void SpawnPluginUtilityWidget();
-
-private:
-	TSharedPtr<class FUICommandList> PluginCommands;
 	UPOGREndpointSettings* ModuleSettings;
 };

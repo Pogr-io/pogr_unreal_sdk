@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorSubsystem.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "POGRSubsystem.generated.h"
 
@@ -141,25 +140,4 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FOnSessionCreationCallback OnSessionCreationCallback;
-};
-
-UCLASS()
-class UPOGRUISubsystem : public UEditorSubsystem
-{
-	GENERATED_BODY()
-/*
-	* POGR UI Helper Function *
-*/
-#if WITH_EDITOR
-public:
-	UFUNCTION(BlueprintCallable, Category = "POGR UI Subsystem")
-	void SetTabId(FName TabId);
-
-private:
-	UFUNCTION(BlueprintCallable, Category = "POGR UI Subsystem")
-	const FName GetTabId() const { return WidgetTabId; }
-
-private:
-	FName WidgetTabId;
-#endif
 };

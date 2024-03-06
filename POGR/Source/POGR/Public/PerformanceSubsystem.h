@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EditorSubsystem.h"
 #include "PerformanceSubsystem.generated.h"
 
 UCLASS(BlueprintType)

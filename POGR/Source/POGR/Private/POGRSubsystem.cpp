@@ -115,7 +115,6 @@ void UPOGRSubsystem::DestroySession(const FString& SessionId)
 
 void UPOGRSubsystem::SendGameMetricsEvent(const FGameMetrics& GameMertrics, const FString& SessionId)
 {
-#if UE_GAME
     if (!POGRSettings)
     {
         POGRSettings = FPOGRModule::Get().GetSettings();
@@ -143,12 +142,10 @@ void UPOGRSubsystem::SendGameMetricsEvent(const FGameMetrics& GameMertrics, cons
 
        SendHttpRequest(POGRSettings->GetMetricsEndpoint(), JsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
-#endif
 }
 
 void UPOGRSubsystem::SendGameUserEvent(const FGameEvent& GameEvent, const FString& SessionId)
 {
-#if UE_GAME
     if (!POGRSettings)
     {
         if (FPOGRModule::IsAvailable())
@@ -174,12 +171,10 @@ void UPOGRSubsystem::SendGameUserEvent(const FGameEvent& GameEvent, const FStrin
 
        SendHttpRequest(POGRSettings->GetEventEndpoint(), JsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
-#endif
 }
 
 void UPOGRSubsystem::SendGameDataEvent(const UJsonRequestObject* jsonObject, const FString& SessionId)
 {
-#if UE_GAME
     if (!POGRSettings)
     {
         if (FPOGRModule::IsAvailable())
@@ -190,12 +185,10 @@ void UPOGRSubsystem::SendGameDataEvent(const UJsonRequestObject* jsonObject, con
     {
        SendHttpRequest(POGRSettings->GetDataEndpoint(), jsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
-#endif
 }
 
 void UPOGRSubsystem::SendGameLogsEvent(const FGameLog& GameLog, const FString& SessionId)
 {
-#if UE_GAME
     if (!POGRSettings)
     {
         if (FPOGRModule::IsAvailable())
@@ -227,12 +220,10 @@ void UPOGRSubsystem::SendGameLogsEvent(const FGameLog& GameLog, const FString& S
 
         SendHttpRequest(POGRSettings->GetLogsEndpoint(), JsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
-#endif
 }
 
 void UPOGRSubsystem::SendGamePerformanceEvent(const FGameSystemMetrics& GamePerformanceMonitor, const FString& SessionId)
 {
-#if UE_GAME
     if (!POGRSettings)
     {
         if (FPOGRModule::IsAvailable())
@@ -255,7 +246,6 @@ void UPOGRSubsystem::SendGamePerformanceEvent(const FGameSystemMetrics& GamePerf
 
        SendHttpRequest(POGRSettings->GetMonitorEndpoint(), JsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
-#endif
 }
 
 void UPOGRSubsystem::SetGameEventAttributes(
@@ -264,7 +254,6 @@ void UPOGRSubsystem::SetGameEventAttributes(
     const FString& EventKey, const FString& PlayerId,
     const FString& AchivementName, FGameEvent& GameEvent)
 {
-#if UE_GAME
     FGameEvent GameEventData;
     GameEventData.event = Event;
     GameEventData.sub_event = SubEvent;
@@ -275,7 +264,6 @@ void UPOGRSubsystem::SetGameEventAttributes(
     GameEventData.event_data.achievement_name = AchivementName;
 
     GameEvent = GameEventData;
-#endif
 }
 
 void UPOGRSubsystem::SetGameLogsAttributes(
@@ -285,7 +273,6 @@ void UPOGRSubsystem::SetGameLogsAttributes(
     const FString& Timestamp, const FString& Ip_address,
     const FString& System, const FString& Action, FGameLog& GameLog)
 {
-#if UE_GAME
     FGameLog GameLogData;
     GameLogData.service = Service;
     GameLogData.environment = Environment;
@@ -299,7 +286,6 @@ void UPOGRSubsystem::SetGameLogsAttributes(
     GameLogData.tags.action = Action;
 
     GameLog = GameLogData;
-#endif
 }
 
 void UPOGRSubsystem::SetGameMetricsAttributes(
@@ -308,7 +294,6 @@ void UPOGRSubsystem::SetGameMetricsAttributes(
     const float& Server_load_percentage, const FString& Location,
     const FString& Game_mode, FGameMetrics& GameMetrics)
 {
-#if UE_GAME
     FGameMetrics GameMetricsData;
     GameMetricsData.service = Service;
     GameMetricsData.environment = Environment;
@@ -319,7 +304,6 @@ void UPOGRSubsystem::SetGameMetricsAttributes(
     GameMetricsData.tags.game_mode = Game_mode;
 
     GameMetrics = GameMetricsData;
-#endif
 }
 
 void UPOGRSubsystem::SetGameMonitorAttributes(
@@ -327,7 +311,6 @@ void UPOGRSubsystem::SetGameMonitorAttributes(
     const TArray<FString>& Dlls_loaded, const FString& Graphics_quality,
     FGameSystemMetrics& GamePerformanceMonitor)
 {
-#if UE_GAME
     FGameSystemMetrics GameSystemMetrics;
     GameSystemMetrics.cpu_usage = CPU_usage;
     GameSystemMetrics.memory_usage = Memory_usage;
@@ -335,7 +318,6 @@ void UPOGRSubsystem::SetGameMonitorAttributes(
     GameSystemMetrics.settings.graphics_quality = Graphics_quality;
 
     GamePerformanceMonitor = GameSystemMetrics;
-#endif
 }
 
 UJsonRequestObject* UPOGRSubsystem::GetJsonRequestObject()
@@ -500,9 +482,4 @@ void UPOGRSubsystem::OnWebSocketMessage(const FString& Message)
     }
     else
         UE_LOG(LogTemp, Error, TEXT("Failed to deserialize JSON string"));
-}
-
-void UPOGRUISubsystem::SetTabId(FName TabId)
-{
-    WidgetTabId = TabId;
 }
