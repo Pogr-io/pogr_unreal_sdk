@@ -9,13 +9,13 @@ struct FGameMetricsData
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadWrite)
-    int32 players_online;
+    int32 players_online = 0;
 
     UPROPERTY(BlueprintReadWrite)
-    float average_latency_ms;
+    float average_latency_ms = 0.0f;
 
     UPROPERTY(BlueprintReadWrite)
-    float server_load_percentage;
+    float server_load_percentage = 0.0f;
 };
 
 USTRUCT(BlueprintType)

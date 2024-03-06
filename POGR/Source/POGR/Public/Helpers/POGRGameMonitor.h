@@ -19,10 +19,10 @@ struct FGameSystemMetrics
     GENERATED_BODY()
 
     UPROPERTY(BlueprintReadWrite)
-    float cpu_usage;
+    float cpu_usage = 0.0f;
 
     UPROPERTY(BlueprintReadWrite)
-    float memory_usage;
+    float memory_usage = 0.0f;
 
     UPROPERTY(BlueprintReadWrite)
     TArray<FString> dlls_loaded;

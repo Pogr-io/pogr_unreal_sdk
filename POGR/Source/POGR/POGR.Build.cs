@@ -36,8 +36,6 @@ public class POGR : ModuleRules
 			{
 				"Projects",
 				"InputCore",
-				"EditorFramework",
-				"ToolMenus",
 				"CoreUObject",
 				"Engine",
 				"Slate",
