@@ -23,10 +23,7 @@ const FString UPOGRSubsystem::GenerateUniqueUserAssociationId() const
 }
 
 void UPOGRSubsystem::CreateSession(const FString& ClientId, const FString& BuildId, const FString& AssociationId)
-{
-    if (FPOGRModule::IsAvailable())
-        POGRSettings = FPOGRModule::Get().GetSettings();
-    
+{    
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
     TSharedRef<FJsonObject> RequestObj = MakeShared<FJsonObject>();
 
@@ -86,12 +83,6 @@ void UPOGRSubsystem::CreateSession(const FString& ClientId, const FString& Build
 
 void UPOGRSubsystem::DestroySession(const FString& SessionId)
 {
-    if (!POGRSettings)
-    {
-        if (FPOGRModule::IsAvailable())
-            POGRSettings = FPOGRModule::Get().GetSettings();
-    }
-
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
     Request->SetURL(POGRSettings->GetShutdownEndpoint());
@@ -115,11 +106,6 @@ void UPOGRSubsystem::DestroySession(const FString& SessionId)
 
 void UPOGRSubsystem::SendGameMetricsEvent(const FGameMetrics& GameMertrics, const FString& SessionId)
 {
-    if (!POGRSettings)
-    {
-        POGRSettings = FPOGRModule::Get().GetSettings();
-    }
-
     static FCriticalSection Mutex;
 
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
@@ -146,12 +132,6 @@ void UPOGRSubsystem::SendGameMetricsEvent(const FGameMetrics& GameMertrics, cons
 
 void UPOGRSubsystem::SendGameUserEvent(const FGameEvent& GameEvent, const FString& SessionId)
 {
-    if (!POGRSettings)
-    {
-        if (FPOGRModule::IsAvailable())
-            POGRSettings = FPOGRModule::Get().GetSettings();
-    }
-
     static FCriticalSection Mutex;
 
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
@@ -169,18 +149,12 @@ void UPOGRSubsystem::SendGameUserEvent(const FGameEvent& GameEvent, const FStrin
        EventData->SetStringField("achievement_name", GameEvent.event_data.achievement_name);
        JsonObject->GetJsonRequestObject()->SetObjectField("event_data", EventData->GetJsonRequestObject());
 
-       SendHttpRequest(POGRSettings->GetEventEndpoint(), JsonObject, SessionId);
+       SendHttpRequest(FString(POGRSettings->GetEventEndpoint()), JsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
 void UPOGRSubsystem::SendGameDataEvent(const UJsonRequestObject* jsonObject, const FString& SessionId)
 {
-    if (!POGRSettings)
-    {
-        if (FPOGRModule::IsAvailable())
-            POGRSettings = FPOGRModule::Get().GetSettings();
-    }
-
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
     {
        SendHttpRequest(POGRSettings->GetDataEndpoint(), jsonObject, SessionId);
@@ -189,47 +163,35 @@ void UPOGRSubsystem::SendGameDataEvent(const UJsonRequestObject* jsonObject, con
 
 void UPOGRSubsystem::SendGameLogsEvent(const FGameLog& GameLog, const FString& SessionId)
 {
-    if (!POGRSettings)
-    {
-        if (FPOGRModule::IsAvailable())
-            POGRSettings = FPOGRModule::Get().GetSettings();
-    }
-
     static FCriticalSection Mutex;
 
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
-    {
-        FScopeLock Lock(&Mutex);
-        UJsonRequestObject* JsonObject = this->GetJsonRequestObject();
-        JsonObject->SetStringField(FString("service"), GameLog.service);
-        JsonObject->SetStringField(FString("environment"), GameLog.environment);
-        JsonObject->SetStringField(FString("severity"), GameLog.severity);
-        JsonObject->SetStringField(FString("type"), GameLog.type);
-        JsonObject->SetStringField(FString("log"), GameLog.log);
+        {
+            FScopeLock Lock(&Mutex);
+            UJsonRequestObject* JsonObject = this->GetJsonRequestObject();
+            JsonObject->SetStringField(FString("service"), GameLog.service);
+            JsonObject->SetStringField(FString("environment"), GameLog.environment);
+            JsonObject->SetStringField(FString("severity"), GameLog.severity);
+            JsonObject->SetStringField(FString("type"), GameLog.type);
+            JsonObject->SetStringField(FString("log"), GameLog.log);
 
-        UJsonRequestObject* DataObject = this->GetJsonRequestObject();
-        DataObject->SetStringField(FString("user_id"), GameLog.data.user_id);
-        DataObject->SetStringField(FString("timestamp"), GameLog.data.timestamp);
-        DataObject->SetStringField(FString("ip_address"), GameLog.data.ip_address);
-        JsonObject->GetJsonRequestObject()->SetObjectField(FString("Data"), DataObject->GetJsonRequestObject());
+            UJsonRequestObject* DataObject = this->GetJsonRequestObject();
+            DataObject->SetStringField(FString("user_id"), GameLog.data.user_id);
+            DataObject->SetStringField(FString("timestamp"), GameLog.data.timestamp);
+            DataObject->SetStringField(FString("ip_address"), GameLog.data.ip_address);
+            JsonObject->GetJsonRequestObject()->SetObjectField(FString("Data"), DataObject->GetJsonRequestObject());
 
-        UJsonRequestObject* TagsObject = this->GetJsonRequestObject();
-        TagsObject->SetStringField(FString("system"), GameLog.tags.system);
-        TagsObject->SetStringField(FString("action"), GameLog.tags.action);
-        JsonObject->GetJsonRequestObject()->SetObjectField(FString("tags"), TagsObject->GetJsonRequestObject());
+            UJsonRequestObject* TagsObject = this->GetJsonRequestObject();
+            TagsObject->SetStringField(FString("system"), GameLog.tags.system);
+            TagsObject->SetStringField(FString("action"), GameLog.tags.action);
+            JsonObject->GetJsonRequestObject()->SetObjectField(FString("tags"), TagsObject->GetJsonRequestObject());
 
-        SendHttpRequest(POGRSettings->GetLogsEndpoint(), JsonObject, SessionId);
+            SendHttpRequest(POGRSettings->GetLogsEndpoint(), JsonObject, SessionId);
     }, TStatId(), nullptr, ENamedThreads::AnyThread);
 }
 
 void UPOGRSubsystem::SendGamePerformanceEvent(const FGameSystemMetrics& GamePerformanceMonitor, const FString& SessionId)
 {
-    if (!POGRSettings)
-    {
-        if (FPOGRModule::IsAvailable())
-            POGRSettings = FPOGRModule::Get().GetSettings();
-    }
-
     static FCriticalSection Mutex;
 
     FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([=]()
@@ -329,7 +291,7 @@ UJsonRequestObject* UPOGRSubsystem::GetJsonRequestObject()
 
 void UPOGRSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-
+    POGRSettings = GetMutableDefault<UPOGREndpointSettings>();
 }
 
 void UPOGRSubsystem::Deinitialize()

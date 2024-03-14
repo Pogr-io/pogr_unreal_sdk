@@ -4,8 +4,8 @@
 #include "UObject/NoExportTypes.h"
 #include "POGRSettings.generated.h"
 
-UCLASS(config = Engine, defaultconfig)
-class UPOGREndpointSettings : public UObject
+UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "POGR"))
+class UPOGREndpointSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
 

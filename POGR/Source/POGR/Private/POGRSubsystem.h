@@ -134,6 +134,7 @@ private:
 	TSharedPtr<IWebSocket> WebSocket;
 	bool IsLoggedIn;
 	bool bIsSessionActive;
+
 public:
 	UPROPERTY(BlueprintAssignable)
 	FOnLoginComplete OnLoginComplete;

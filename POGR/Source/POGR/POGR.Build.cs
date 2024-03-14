@@ -42,7 +42,8 @@ public class POGR : ModuleRules
 				"SlateCore",
                 "HTTP",
                 "Json",
-                "WebSockets"
+                "WebSockets",
+                "DeveloperSettings"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
