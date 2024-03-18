@@ -17,6 +17,95 @@ typedef TSharedPtr<IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoginComplete, bool, bLoginStatus);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSessionCreationCallback);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPayloadCreationCallback);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPayloadCallback, FString, Content);
+
+UENUM(BlueprintType)
+enum EAcceptedStatus : uint8
+{
+	Pending,
+	Saved,
+	Ignored,
+	None
+};
+
+USTRUCT(BlueprintType)
+struct FOrganizationData
+{
+	GENERATED_BODY()
+
+	FString UUID;
+	FString Name;
+	FString CreatedOn;
+	FString Type;
+	FString URL;
+};
+
+USTRUCT(BlueprintType)
+struct FOrganizationGameData
+{
+	GENERATED_BODY()
+
+	FString UUID;
+	FString StudioUUID;
+	FString GameTitle;
+	FString URL;
+	FString CreatedOn;
+};
+
+USTRUCT(BlueprintType)
+struct FUserProfileData
+{
+	GENERATED_BODY()
+
+	FString UserName;
+	FString DisplayName;
+	FString AvatarURL;
+	int32 Level;
+	int32 Exp;
+	int32 RequiredExp;
+};
+
+USTRUCT(BlueprintType)
+struct FDataPayload
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite)
+	FString Id;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString ClientId;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString BuildId;
+
+	UPROPERTY(BlueprintReadWrite)
+	TEnumAsByte<EAcceptedStatus> AcceptedStatus;
+
+	UPROPERTY(BlueprintReadWrite)
+	FString DataReceivedDate;
+
+	UPROPERTY(BlueprintReadWrite)
+	int32 Calls;
+};
+
+UENUM()
+enum URLDefinition : uint8 {
+	Data,
+	Events,
+	Logs,
+	Metrics
+};
+
+UENUM()
+enum URLAction : uint8 {
+	List,
+	Update,
+	Definition,
+	Receiving
+};
+
 UCLASS()
 class UPOGRSubsystem : public UEngineSubsystem
 {
@@ -88,6 +177,35 @@ public:
 	);
 
 public:
+	UFUNCTION(BlueprintCallable)
+	void GetOrganizationData(FString POGRClient, FString LoginTokken);
+
+	UFUNCTION(BlueprintCallable)
+	void GetOrganizationGameData(FString POGRClient, FString LoginTokken);
+
+	UFUNCTION(BlueprintCallable)
+	void GetUserProfileData(FString POGRClient, FString LoginTokken);
+
+public:
+	UFUNCTION(BlueprintCallable)
+	void ListDataPayloads(FString POGRClient, FString LoginTokken, FString BuildId);
+
+	UFUNCTION(BlueprintCallable)
+	void UpdateDataStatus(FString POGRClient, FString LoginTokken, EAcceptedStatus AcceptedStatus, FString BuildId, FString DataId);
+
+	UFUNCTION(BlueprintCallable)
+	void GetDataPayloadDefinition(FString POGRClient, FString LoginTokken, FString DataId, FString BuildId);
+
+	UFUNCTION(BlueprintCallable)
+	void GetDataReceived(FString POGRClient, FString LoginTokken, FString DataId, FString BuildId);
+	
+	UFUNCTION(BlueprintCallable)
+	FString GetPogrUrl(URLAction Action, URLDefinition Definition, EAcceptedStatus Status = EAcceptedStatus::Ignored, FString BuildId = FString("None"), FString DataId = FString("None"));
+
+	UFUNCTION(BlueprintPure)
+	const TArray<FDataPayload> GetDataPayloadArray() const { return DataPayloads; }
+
+public:
 	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
 	const FString GetSessionId() const { return ActiveSessionId; };
 
@@ -135,10 +253,39 @@ private:
 	bool IsLoggedIn;
 	bool bIsSessionActive;
 
+private:
+	FUserProfileData UserProfileData;
+	TArray<FOrganizationData> OrganizationData;
+	TArray<FOrganizationGameData> OrganizationGameData;
+	TArray<FDataPayload> DataPayloads;
+	FString ContentAsString;
+
 public:
 	UPROPERTY(BlueprintAssignable)
 	FOnLoginComplete OnLoginComplete;
 
 	UPROPERTY(BlueprintAssignable)
 	FOnSessionCreationCallback OnSessionCreationCallback;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnPayloadCreationCallback OnPayloadCreationCallback;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnPayloadCallback OnPayloadCallback;
+
+public:
+	void SetContentAsString(FString Content);
+
+	UFUNCTION(BlueprintPure)
+	const FString GetContentAsString() const { return ContentAsString; }
+
+public:
+	UFUNCTION(BlueprintCallable)
+	void SetPayloadDatatype(URLDefinition PayloadDatatype);
+
+private:
+	const URLDefinition GetPayloadDatatype() const { return PayloadDefinition; }
+
+private:
+	URLDefinition PayloadDefinition = URLDefinition::Data;
 };

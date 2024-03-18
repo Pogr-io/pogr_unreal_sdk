@@ -282,6 +282,447 @@ void UPOGRSubsystem::SetGameMonitorAttributes(
     GamePerformanceMonitor = GameSystemMetrics;
 }
 
+void UPOGRSubsystem::GetOrganizationData(FString POGRClient, FString LoginTokken)
+{
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+
+    Request->SetURL(FString("https://api-stage.pogr.io/v1/organizations/plugins/studios"));
+    Request->SetVerb(TEXT("GET"));
+
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("POGR_CLIENT", POGRClient);
+    Request->SetHeader("POGR_SESSION", LoginTokken);
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
+        {
+            if (bSuccess && HttpResponse.IsValid() && HttpResponse->GetResponseCode() == EHttpResponseCodes::Type::Ok)
+            {
+                TSharedPtr<FJsonObject> ResponseObj;
+                if (HttpResponse != NULL) {
+                    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
+                    FJsonSerializer::Deserialize(Reader, ResponseObj);
+                }
+
+                if (ResponseObj->HasField("payload"))
+                {
+                    // Get the "payload" object
+                    TSharedPtr<FJsonObject> PayloadObject = ResponseObj->GetObjectField("payload");
+
+                    // Check if the "payload" object contains the "organizations" field
+                    const TArray<TSharedPtr<FJsonValue>>* OrganizationsArray;
+                    if (PayloadObject->TryGetArrayField("organizations", OrganizationsArray))
+                    {
+                        for (const auto& OrganizationValue : *OrganizationsArray)
+                        {
+                            const TSharedPtr<FJsonObject> OrganizationObject = OrganizationValue->AsObject();
+                            if (OrganizationObject.IsValid())
+                            {
+                                FOrganizationData Organization;
+
+                                Organization.UUID = OrganizationObject->GetStringField("uid");
+                                Organization.Name = OrganizationObject->GetStringField("name");
+                                Organization.CreatedOn = OrganizationObject->GetStringField("created_on");
+                                Organization.Type = OrganizationObject->GetStringField("type");
+
+                                const TSharedPtr<FJsonObject> LogoObject = OrganizationObject->GetObjectField("logo");
+                                if (LogoObject.IsValid())
+                                {
+                                    Organization.URL = LogoObject->GetStringField("url");
+                                }
+
+                                OrganizationData.Add(Organization);
+                            }
+                        }
+                    }
+                }
+            }
+            else
+                UE_LOG(LogTemp, Error, TEXT("Failed to Fetch Oragnization Data"));
+        }
+    );
+
+    Request->ProcessRequest();
+}
+
+void UPOGRSubsystem::GetOrganizationGameData(FString POGRClient, FString LoginTokken)
+{
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+
+    Request->SetURL(FString("https://api-stage.pogr.io/v1/organizations/a05cadc2-2272-4724-9609-0b9449767269/plugins/games"));
+    Request->SetVerb(TEXT("GET"));
+
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("POGR_CLIENT", POGRClient);
+    Request->SetHeader("POGR_SESSION", LoginTokken);
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
+        {
+            if (bSuccess && HttpResponse.IsValid() && HttpResponse->GetResponseCode() == EHttpResponseCodes::Type::Ok)
+            {
+                TSharedPtr<FJsonObject> ResponseObj;
+                if (HttpResponse != NULL) {
+                    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
+                    FJsonSerializer::Deserialize(Reader, ResponseObj);
+                }
+
+                const TArray<TSharedPtr<FJsonValue>>* PayloadArray;
+                if (ResponseObj->TryGetArrayField("payload", PayloadArray))
+                {
+                    for (const auto& PayloadValue : *PayloadArray)
+                    {
+                        const TSharedPtr<FJsonObject> PayloadObject = PayloadValue->AsObject();
+                        if (PayloadObject.IsValid())
+                        {
+                            FOrganizationGameData Organization;
+
+                            Organization.UUID = PayloadObject->GetStringField("uid");
+                            Organization.StudioUUID = PayloadObject->GetStringField("studio_org_uid");
+                            Organization.GameTitle = PayloadObject->GetStringField("name");
+                            Organization.CreatedOn = PayloadObject->GetStringField("created_on");
+
+                            const TSharedPtr<FJsonObject> LogoObject = PayloadObject->GetObjectField("logo");
+                            if (LogoObject.IsValid())
+                            {
+                                Organization.URL = LogoObject->GetStringField("url");
+                            }
+
+                            OrganizationGameData.Add(Organization);
+                        }
+                    }
+                }
+            }
+            else
+                UE_LOG(LogTemp, Error, TEXT("Failed to Fetch Oragnization Game Data"));
+        }
+    );
+
+    Request->ProcessRequest();
+}
+
+void UPOGRSubsystem::GetUserProfileData(FString POGRClient, FString LoginTokken)
+{
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+
+    Request->SetURL(FString("https://api-stage.pogr.io/v1/user/plugins/profile"));
+    Request->SetVerb(TEXT("GET"));
+
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("POGR_CLIENT", POGRClient);
+    Request->SetHeader("POGR_SESSION", LoginTokken);
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
+        {
+            if (bSuccess && HttpResponse.IsValid() && HttpResponse->GetResponseCode() == EHttpResponseCodes::Type::Ok)
+            {
+                TSharedPtr<FJsonObject> ResponseObj;
+                if (HttpResponse != NULL) {
+                    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
+                    FJsonSerializer::Deserialize(Reader, ResponseObj);
+                }
+
+                if (ResponseObj->HasField("payload"))
+                {
+                    // Get the "payload" object
+                    TSharedPtr<FJsonObject> PayloadObject = ResponseObj->GetObjectField("payload");
+
+                    UserProfileData.UserName = PayloadObject->GetStringField("username");
+                    UserProfileData.DisplayName = PayloadObject->GetStringField("display_name");
+                    UserProfileData.AvatarURL = PayloadObject->GetStringField("avatar");
+                    UserProfileData.Level = FCString::Atoi(*PayloadObject->GetStringField("level"));
+                    UserProfileData.Exp = FCString::Atoi(*PayloadObject->GetStringField("total_exp"));
+                    UserProfileData.RequiredExp = FCString::Atoi(*PayloadObject->GetStringField("exp_required"));
+                }
+            }
+            else
+                UE_LOG(LogTemp, Error, TEXT("Failed to Fetch User Profile Data"));
+        }
+    );
+
+    Request->ProcessRequest();
+}
+
+void UPOGRSubsystem::ListDataPayloads(FString POGRClient, FString LoginTokken, FString BuildId)
+{
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+
+    Request->SetURL(GetPogrUrl(URLAction::List, GetPayloadDatatype(), EAcceptedStatus::Ignored, BuildId));
+    Request->SetVerb(TEXT("GET"));
+
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("POGR_CLIENT", POGRClient);
+    Request->SetHeader("POGR_SESSION", LoginTokken);
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
+        {
+            if (bSuccess && HttpResponse.IsValid() && HttpResponse->GetResponseCode() == EHttpResponseCodes::Type::Ok)
+            {
+                TSharedPtr<FJsonObject> ResponseObj;
+                if (HttpResponse != NULL) {
+                    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
+                    FJsonSerializer::Deserialize(Reader, ResponseObj);
+                }
+                
+                if (ResponseObj->HasField("payload"))
+                {
+                    // Get the "payload" object
+                    TSharedPtr<FJsonObject> PayloadObject = ResponseObj->GetObjectField("payload");
+
+                    // Check if the "payload" object contains the "organizations" field
+                    const TArray<TSharedPtr<FJsonValue>>* DataArray;
+                    if (PayloadObject->TryGetArrayField("data", DataArray))
+                    {
+                        DataPayloads.Empty();
+
+                        for (const auto& DataValue : *DataArray)
+                        {
+                            const TSharedPtr<FJsonObject> DataObject = DataValue->AsObject();
+                            if (DataObject.IsValid())
+                            {
+                                FDataPayload DataPayload;
+
+                                DataPayload.Id = DataObject->GetStringField("id");
+                                DataPayload.ClientId = DataObject->GetStringField("client_id");
+                                DataPayload.BuildId = DataObject->GetStringField("build_id");
+                                DataPayload.AcceptedStatus = (EAcceptedStatus)FCString::Atoi(*DataObject->GetStringField("accepted_status"));
+                                DataPayload.DataReceivedDate = DataObject->GetStringField("first_data_received_date");
+                                DataPayload.Calls = FCString::Atoi(*DataObject->GetStringField("calls"));
+
+                                DataPayloads.Add(DataPayload);
+
+                                OnPayloadCreationCallback.Broadcast();
+                            }
+                        }
+                    }
+                }
+            }
+            else
+                UE_LOG(LogTemp, Error, TEXT("Failed to Payloads List Data"));
+        }
+    );
+
+    Request->ProcessRequest();
+}
+
+void UPOGRSubsystem::UpdateDataStatus(FString POGRClient, FString LoginTokken, EAcceptedStatus AcceptedStatus, FString BuildId, FString DataId)
+{
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+
+    Request->SetURL(GetPogrUrl(URLAction::Update, GetPayloadDatatype(), AcceptedStatus, BuildId, DataId));
+    Request->SetVerb(TEXT("PUT"));
+
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("POGR_CLIENT", POGRClient);
+    Request->SetHeader("POGR_SESSION", LoginTokken);
+
+    Request->OnProcessRequestComplete().BindUObject(this, &UPOGRSubsystem::OnResponseReceived);
+
+    Request->ProcessRequest();
+}
+
+void UPOGRSubsystem::GetDataPayloadDefinition(FString POGRClient, FString LoginTokken, FString DataId, FString BuildId)
+{
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+
+    Request->SetURL(GetPogrUrl(URLAction::Definition, GetPayloadDatatype(), EAcceptedStatus::None, BuildId, DataId));
+    Request->SetVerb(TEXT("GET"));
+
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("POGR_CLIENT", POGRClient);
+    Request->SetHeader("POGR_SESSION", LoginTokken);
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
+        {
+            if (bSuccess && HttpResponse.IsValid() && HttpResponse->GetResponseCode() == EHttpResponseCodes::Type::Ok)
+            {
+                TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+
+                TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
+                if (FJsonSerializer::Deserialize(JsonReader, JsonObject))
+                {
+                    // Serialize the JSON object back to a formatted string
+                    FString JsonString;
+                    TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&JsonString);
+                    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
+                    SetContentAsString(JsonString);
+
+                    // Require a delegate to update visuals
+                }
+            }
+            else
+                UE_LOG(LogTemp, Error, TEXT("Failed to Payloads List Data"));
+        }
+    );
+
+    Request->ProcessRequest();
+}
+
+void UPOGRSubsystem::GetDataReceived(FString POGRClient, FString LoginTokken, FString DataId, FString BuildId)
+{
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+
+    Request->SetURL(GetPogrUrl(URLAction::Receiving, GetPayloadDatatype(), EAcceptedStatus::None, BuildId, DataId));
+    Request->SetVerb(TEXT("GET"));
+
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("POGR_CLIENT", POGRClient);
+    Request->SetHeader("POGR_SESSION", LoginTokken);
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
+        {
+            if (bSuccess && HttpResponse.IsValid() && HttpResponse->GetResponseCode() == EHttpResponseCodes::Type::Ok)
+            {
+                TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject);
+
+                TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
+                if (FJsonSerializer::Deserialize(JsonReader, JsonObject))
+                {
+                    // Serialize the JSON object back to a formatted string
+                    FString JsonString;
+                    TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&JsonString);
+                    FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
+                    SetContentAsString(JsonString);
+
+                    // Require delegate to update visuals
+                }
+            }
+            else
+                UE_LOG(LogTemp, Error, TEXT("Failed to Payloads List Data"));
+        }
+    );
+
+    Request->ProcessRequest();
+}
+
+FString UPOGRSubsystem::GetPogrUrl(URLAction Action, URLDefinition Definition, EAcceptedStatus Status, FString BuildId, FString DataId)
+{
+    FString URL = FString();
+    FString BaseURL = FString("https://api-stage.pogr.io/v1/widget/data/developer-review/");
+
+    switch (Action)
+    {
+    case URLAction::List:
+        switch (Definition)
+        {
+            case URLDefinition::Data:
+                URL = BaseURL + "list-data-payloads?build_id=" + BuildId;
+                break;
+            case URLDefinition::Events:
+                URL = BaseURL + "list-events-payloads?build_id=" + BuildId;
+                break;
+            case URLDefinition::Metrics:
+                URL = BaseURL + "list-metrics-payloads?build_id=" + BuildId;
+                break;
+            case URLDefinition::Logs:
+                URL = BaseURL + "list-logs-payloads?build_id=" + BuildId;
+                break;
+        }
+        break;
+    case URLAction::Update:
+        switch (Definition)
+        {
+            case URLDefinition::Data:
+                switch (Status)
+                {
+                    case EAcceptedStatus::Pending:
+                        URL = BaseURL + "update-status/data/" + DataId + "?status=Pending&build_id=" + BuildId;
+                        break;
+                    case EAcceptedStatus::Saved:
+                        URL = BaseURL + "update-status/data/" + DataId + "?status=Save&build_id=" + BuildId;
+                        break;
+                    case EAcceptedStatus::Ignored:
+                        URL = BaseURL + "update-status/data/" + DataId + "?status=Ignore&build_id=" + BuildId;
+                        break;
+                }
+                break;
+            case URLDefinition::Events:
+                switch (Status)
+                {
+                    case EAcceptedStatus::Pending:
+                        URL = BaseURL + "update-status/events/" + DataId + "?status=Pending&build_id=" + BuildId;
+                        break;
+                    case EAcceptedStatus::Saved:
+                        URL = BaseURL + "update-status/events/" + DataId + "?status=Save&build_id=" + BuildId;
+                        break;
+                    case EAcceptedStatus::Ignored:
+                        URL = BaseURL + "update-status/events/" + DataId + "?status=Ignore&build_id=" + BuildId;
+                        break;
+                }
+                break;
+            case URLDefinition::Metrics:
+                switch (Status)
+                {
+                    case EAcceptedStatus::Pending:
+                        URL = BaseURL + "update-status/metrics/" + DataId + "?status=Pending&build_id=" + BuildId;
+                        break;
+                    case EAcceptedStatus::Saved:
+                        URL = BaseURL + "update-status/metrics/" + DataId + "?status=Save&build_id=" + BuildId;
+                        break;
+                    case EAcceptedStatus::Ignored:
+                        URL = BaseURL + "update-status/metrics/" + DataId + "?status=Ignore&build_id=" + BuildId;
+                        break;
+                }
+                break;
+            case URLDefinition::Logs:
+                switch (Status)
+                {
+                    case EAcceptedStatus::Pending:
+                        URL = BaseURL + "update-status/logs/" + DataId + "?status=Pending&build_id=" + BuildId;
+                        break;
+                    case EAcceptedStatus::Saved:
+                        URL = BaseURL + "update-status/logs/" + DataId + "?status=Save&build_id=" + BuildId;
+                        break;
+                    case EAcceptedStatus::Ignored:
+                        URL = BaseURL + "update-status/logs/" + DataId + "?status=Ignore&build_id=" + BuildId;
+                        break;
+                }
+                break;
+        }
+        break;
+    case URLAction::Definition:
+        switch (Definition)
+        {
+            case URLDefinition::Data:
+                URL = BaseURL + "get-data-payload-definition/" + DataId + "?build_id=" + BuildId;
+                break;
+            case URLDefinition::Events:
+                URL = BaseURL + "get-events-payload-definition/" + DataId + "?build_id=" + BuildId;
+                break;
+            case URLDefinition::Metrics:
+                URL = BaseURL + "get-metrics-payload-definition/" + DataId + "?build_id=" + BuildId;
+                break;
+            case URLDefinition::Logs:
+                URL = BaseURL + "get-logs-payload-definition/" + DataId + "?build_id=" + BuildId;
+                break;
+        }
+        break;
+    case URLAction::Receiving:
+        switch (Definition)
+        {
+            case URLDefinition::Data:
+                URL = BaseURL + "get-data-received/" + DataId + "?build_id=" + BuildId;
+                break;
+            case URLDefinition::Events:
+                URL = BaseURL + "get-events-received/" + DataId + "?build_id=" + BuildId;
+                break;
+            case URLDefinition::Metrics:
+                URL = BaseURL + "get-metrics-received/" + DataId + "?build_id=" + BuildId;
+                break;
+            case URLDefinition::Logs:
+                URL = BaseURL + "get-logs-received/" + DataId + "?build_id=" + BuildId;
+                break;
+        }
+        break;
+    }
+
+    return URL;
+}
+
 UJsonRequestObject* UPOGRSubsystem::GetJsonRequestObject()
 {
     JsonObject = NewObject<UJsonRequestObject>();
@@ -445,3 +886,36 @@ void UPOGRSubsystem::OnWebSocketMessage(const FString& Message)
     else
         UE_LOG(LogTemp, Error, TEXT("Failed to deserialize JSON string"));
 }
+
+void UPOGRSubsystem::SetContentAsString(FString Content)
+{
+    ContentAsString = Content;
+    OnPayloadCallback.Broadcast(ContentAsString);
+}
+
+void UPOGRSubsystem::SetPayloadDatatype(URLDefinition PayloadDatatype)
+{
+    PayloadDefinition = PayloadDatatype;
+}
+
+/*
+    - Break the URL to Understand how many parameters are required to fullfill the Command 
+    * Listing URL required two things - what need to be list down - Build Id
+    * Update URL required four things - what need to be updated - Id of the Data Defination - status - build Id
+    * Data Defination URL requried three things - what need to be defined - Id of the Data Defination - build Id
+    * Data Received URL required three things - what need to be received - Id of the Data Defination - build Id
+*/
+
+/*
+    * {{POGR_API}}{{API_VERSION}}widget/data/developer-review/
+    list-data-payloads?build_id=8216bfc4738d3789f684f9d3f117935e5af49f04c8baa6ed70d11a8e686d764c315e439dc6ee4d6abf52d333a3ca64a246e554bb0709255dbfc287deb311ff8b
+    * {{POGR_API}}{{API_VERSION}}widget/data/developer-review/
+    update-status/data/65c875999de8d314e9f5c1d3?status=Save&build_id=8216bfc4738d3789f684f9d3f117935e5af49f04c8baa6ed70d11a8e686d764c315e439dc6ee4d6abf52d333a3ca64a246e554bb0709255dbfc287deb311ff8b
+    * {{POGR_API}}{{API_VERSION}}widget/data/developer-review/
+    get-data-payload-definition/65efe09d5753fce8bad793bf?build_id=8216bfc4738d3789f684f9d3f117935e5af49f04c8baa6ed70d11a8e686d764c315e439dc6ee4d6abf52d333a3ca64a246e554bb0709255dbfc287deb311ff8b
+    * {{POGR_API}}{{API_VERSION}}widget/data/developer-review/
+    get-data-received/65c8773d9de8d314e9f5c1d4?build_id=8216bfc4738d3789f684f9d3f117935e5af49f04c8baa6ed70d11a8e686d764c315e439dc6ee4d6abf52d333a3ca64a246e554bb0709255dbfc287deb311ff8b
+
+*/
+
+// {{POGR_API}}{{API_VERSION}}widget/data/developer-review/get-logs-received/?build_id=8216bfc4738d3789f684f9d3f117935e5af49f04c8baa6ed70d11a8e686d764c315e439dc6ee4d6abf52d333a3ca64a246e554bb0709255dbfc287deb311ff8b
