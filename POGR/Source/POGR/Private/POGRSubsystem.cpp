@@ -497,6 +497,10 @@ void UPOGRSubsystem::ListDataPayloads(FString POGRClient, FString LoginTokken, F
                             }
                         }
                     }
+                    else {
+                        DataPayloads.Empty();
+                        OnPayloadCreationCallback.Broadcast();
+                    }
                 }
             }
             else
@@ -518,7 +522,18 @@ void UPOGRSubsystem::UpdateDataStatus(FString POGRClient, FString LoginTokken, E
     Request->SetHeader("POGR_CLIENT", POGRClient);
     Request->SetHeader("POGR_SESSION", LoginTokken);
 
-    Request->OnProcessRequestComplete().BindUObject(this, &UPOGRSubsystem::OnResponseReceived);
+    Request->OnProcessRequestComplete().BindLambda(
+        [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
+        {
+            if (bSuccess && HttpResponse.IsValid() && HttpResponse->GetResponseCode() == EHttpResponseCodes::Type::Ok)
+            {
+                OnPayloadDataUpdate.Broadcast();
+                UE_LOG(LogTemp, Warning, TEXT("%s"), *HttpResponse->GetContentAsString());
+            }
+            else
+                UE_LOG(LogTemp, Error, TEXT("Failed to Update Payload Data Status"));
+        }
+    );
 
     Request->ProcessRequest();
 }
@@ -549,8 +564,6 @@ void UPOGRSubsystem::GetDataPayloadDefinition(FString POGRClient, FString LoginT
                     TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&JsonString);
                     FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
                     SetContentAsString(JsonString);
-
-                    // Require a delegate to update visuals
                 }
             }
             else
@@ -587,8 +600,6 @@ void UPOGRSubsystem::GetDataReceived(FString POGRClient, FString LoginTokken, FS
                     TSharedRef<TJsonWriter<>> JsonWriter = TJsonWriterFactory<>::Create(&JsonString);
                     FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
                     SetContentAsString(JsonString);
-
-                    // Require delegate to update visuals
                 }
             }
             else
@@ -896,6 +907,31 @@ void UPOGRSubsystem::SetContentAsString(FString Content)
 void UPOGRSubsystem::SetPayloadDatatype(URLDefinition PayloadDatatype)
 {
     PayloadDefinition = PayloadDatatype;
+    OnPayloadDataUpdate.Broadcast();
+}
+
+const FString UPOGRSubsystem::GetSelectedOptionValue() const
+{
+    switch (GetPayloadDatatype()) {
+        case URLDefinition::Data: return FString("Data"); break;
+        case URLDefinition::Events: return FString("Event"); break;
+        case URLDefinition::Metrics: return FString("Metric"); break;
+        case URLDefinition::Logs: return FString("Log"); break;
+    }
+    return FString("None Selected");
+}
+
+void UPOGRSubsystem::SetOrganizationOption(FString OrganizationValue)
+{
+    OrganizationName = OrganizationValue;
+
+    for (const auto Organization : GetOrganizationDataArray())
+    {
+        if (OrganizationName == Organization.Name)
+        {
+            // GetOrganizationGameData()
+        }
+    }
 }
 
 /*

@@ -17,6 +17,7 @@ typedef TSharedPtr<IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoginComplete, bool, bLoginStatus);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSessionCreationCallback);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPayloadDataUpdate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPayloadCreationCallback);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPayloadCallback, FString, Content);
 
@@ -34,10 +35,15 @@ struct FOrganizationData
 {
 	GENERATED_BODY()
 
+	UPROPERTY(BlueprintReadOnly)
 	FString UUID;
+
+	UPROPERTY(BlueprintReadOnly)
 	FString Name;
 	FString CreatedOn;
 	FString Type;
+
+	UPROPERTY(BlueprintReadOnly)
 	FString URL;
 };
 
@@ -205,6 +211,9 @@ public:
 	UFUNCTION(BlueprintPure)
 	const TArray<FDataPayload> GetDataPayloadArray() const { return DataPayloads; }
 
+	UFUNCTION(BlueprintPure)
+	const TArray<FOrganizationData> GetOrganizationDataArray() const { return OrganizationData; }
+
 public:
 	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
 	const FString GetSessionId() const { return ActiveSessionId; };
@@ -273,6 +282,9 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnPayloadCallback OnPayloadCallback;
 
+	UPROPERTY(BlueprintAssignable)
+	FOnPayloadDataUpdate OnPayloadDataUpdate;
+
 public:
 	void SetContentAsString(FString Content);
 
@@ -283,9 +295,23 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void SetPayloadDatatype(URLDefinition PayloadDatatype);
 
+	UFUNCTION(BlueprintPure)
+	const FString GetSelectedOptionValue() const;
+
 private:
 	const URLDefinition GetPayloadDatatype() const { return PayloadDefinition; }
 
 private:
 	URLDefinition PayloadDefinition = URLDefinition::Data;
+	
+	// Selecting An Organization
+public:
+	UFUNCTION(BlueprintCallable)
+	void SetOrganizationOption(FString OrganizationValue);
+
+	UFUNCTION(BlueprintPure)
+	const FString GetOrganizationName() const { return OrganizationName; }
+
+private:
+	FString OrganizationName;
 };
