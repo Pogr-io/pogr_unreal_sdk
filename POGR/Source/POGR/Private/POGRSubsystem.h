@@ -17,6 +17,8 @@ typedef TSharedPtr<IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoginComplete, bool, bLoginStatus);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSessionCreationCallback);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnOrganizationCallback);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameCallback);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPayloadDataUpdate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPayloadCreationCallback);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPayloadCallback, FString, Content);
@@ -187,7 +189,7 @@ public:
 	void GetOrganizationData(FString POGRClient, FString LoginTokken);
 
 	UFUNCTION(BlueprintCallable)
-	void GetOrganizationGameData(FString POGRClient, FString LoginTokken);
+	void GetOrganizationGameData(FString POGRClient, FString LoginTokken, const FString& GameUUID);
 
 	UFUNCTION(BlueprintCallable)
 	void GetUserProfileData(FString POGRClient, FString LoginTokken);
@@ -213,6 +215,12 @@ public:
 
 	UFUNCTION(BlueprintPure)
 	const TArray<FOrganizationData> GetOrganizationDataArray() const { return OrganizationData; }
+
+	UFUNCTION(BlueprintPure)
+	const TArray<FOrganizationGameData> GetOrganizationGameDataArray() const { return OrganizationGameData; }
+
+	UFUNCTION(BlueprintCallable)
+	FString ConstructOrgGameURL(const FString& Id);
 
 public:
 	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
@@ -285,6 +293,12 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnPayloadDataUpdate OnPayloadDataUpdate;
 
+	UPROPERTY(BlueprintAssignable)
+	FOnOrganizationCallback OnOrganizationCallback;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameCallback OnGameCallback;
+
 public:
 	void SetContentAsString(FString Content);
 
@@ -304,7 +318,7 @@ private:
 private:
 	URLDefinition PayloadDefinition = URLDefinition::Data;
 	
-	// Selecting An Organization
+	// Selecting An Organization And Game
 public:
 	UFUNCTION(BlueprintCallable)
 	void SetOrganizationOption(FString OrganizationValue);
@@ -312,6 +326,13 @@ public:
 	UFUNCTION(BlueprintPure)
 	const FString GetOrganizationName() const { return OrganizationName; }
 
+	UFUNCTION(BlueprintCallable)
+	void SetGameOption(FString GameValue);
+
+	UFUNCTION(BlueprintPure)
+	const FString GetSelectedGameTitle() const { return GameTitle; }
+
 private:
 	FString OrganizationName;
+	FString GameTitle;
 };

@@ -15,6 +15,10 @@
 #include "Helpers/POGRGameMetrics.h"
 #include "Helpers/POGRGameMonitor.h"
 
+const FString const POGR_CLIENT = FString("5XJ4WBU1Q52PV6RKKNI6EB7AF3RDU2U8HTW2YA0Z2YQIZCGIZ6NLUD52ERPV0IGAXG19WM9ZF3PVBUYGWTRCLIQG75J3P11WRPVOCGXCHZLEN86WL3DDL7GOHIEM7E8G");
+const FString const POGR_SESSION = FString("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI1MTRlYzJkOC03ZTY3LTRkMDQtODcxOS03OTkzYzU0ZTkwZmMiLCJzZXNzaW9uX3Rva2VuIjoib2dwcWxtZHJpc25pM2VjbXNsZTlvajVwcDhkOTExdWNsM3JsYXFodTNmZDhlNTB0cmdyZG1oNGtqY2YxdHUzdXpiZmwwMHh1cjJibmVxMnBiaTI5bnJ6cmc4OWIyOXF3ZWd1Ymphd20zeHg0cTUxamNwYWJ3eXIxejAzOHQwbzc0cWNnMmtpZDJpdXFuOTd6eHZ6MmgzaHpramR3aGQzaXlwZjYwbTNobXExdmkwcTlqcDBmcXhsZW9ndTdlbndpaWpiNGh2YnVucmtneHd6czcwNmdzcmV6cWdyenluODR0am4wd3N1eGt4MG9xeDhjeHJycjZzanVibjJxbGpnbCIsImlhdCI6MTcxMDk2MzQ3N30.w4RKEgyGzCmFRLh7q7jiyjf8N10ylRHMrtAzyFDPlTU");
+
+
 const FString UPOGRSubsystem::GenerateUniqueUserAssociationId() const
 {
     FGuid RandomGuid = FGuid::NewGuid();
@@ -291,7 +295,7 @@ void UPOGRSubsystem::GetOrganizationData(FString POGRClient, FString LoginTokken
 
     Request->SetHeader("Content-Type", "application/json");
     Request->SetHeader("POGR_CLIENT", POGRClient);
-    Request->SetHeader("POGR_SESSION", LoginTokken);
+    Request->SetHeader("POGR_SESSION", POGR_SESSION);
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
@@ -332,6 +336,7 @@ void UPOGRSubsystem::GetOrganizationData(FString POGRClient, FString LoginTokken
                                 }
 
                                 OrganizationData.Add(Organization);
+                                OnOrganizationCallback.Broadcast();
                             }
                         }
                     }
@@ -342,19 +347,18 @@ void UPOGRSubsystem::GetOrganizationData(FString POGRClient, FString LoginTokken
         }
     );
 
-    Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::GetOrganizationGameData(FString POGRClient, FString LoginTokken)
+void UPOGRSubsystem::GetOrganizationGameData(FString POGRClient, FString LoginTokken, const FString& GameUUID)
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
-    Request->SetURL(FString("https://api-stage.pogr.io/v1/organizations/a05cadc2-2272-4724-9609-0b9449767269/plugins/games"));
+    Request->SetURL(ConstructOrgGameURL(GameUUID));
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
     Request->SetHeader("POGR_CLIENT", POGRClient);
-    Request->SetHeader("POGR_SESSION", LoginTokken);
+    Request->SetHeader("POGR_SESSION", POGR_SESSION);
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
@@ -389,6 +393,7 @@ void UPOGRSubsystem::GetOrganizationGameData(FString POGRClient, FString LoginTo
                             }
 
                             OrganizationGameData.Add(Organization);
+                            OnGameCallback.Broadcast();
                         }
                     }
                 }
@@ -929,9 +934,22 @@ void UPOGRSubsystem::SetOrganizationOption(FString OrganizationValue)
     {
         if (OrganizationName == Organization.Name)
         {
-            // GetOrganizationGameData()
+            GetOrganizationGameData(POGR_CLIENT, POGR_SESSION, Organization.UUID);
         }
     }
+}
+
+FString UPOGRSubsystem::ConstructOrgGameURL(const FString& Id)
+{
+    FString BaseURL = FString("https://api-stage.pogr.io/v1//organizations/");
+    // Construct the complete URL
+    FString URL = BaseURL + Id + "/plugins/games";
+    return URL;
+}
+
+void UPOGRSubsystem::SetGameOption(FString GameValue)
+{
+    GameTitle = GameValue;
 }
 
 /*
