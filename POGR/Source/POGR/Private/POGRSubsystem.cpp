@@ -15,8 +15,8 @@
 #include "Helpers/POGRGameMetrics.h"
 #include "Helpers/POGRGameMonitor.h"
 
-const FString const POGR_CLIENT = FString("5XJ4WBU1Q52PV6RKKNI6EB7AF3RDU2U8HTW2YA0Z2YQIZCGIZ6NLUD52ERPV0IGAXG19WM9ZF3PVBUYGWTRCLIQG75J3P11WRPVOCGXCHZLEN86WL3DDL7GOHIEM7E8G");
-const FString const POGR_SESSION = FString("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI1MTRlYzJkOC03ZTY3LTRkMDQtODcxOS03OTkzYzU0ZTkwZmMiLCJzZXNzaW9uX3Rva2VuIjoib2dwcWxtZHJpc25pM2VjbXNsZTlvajVwcDhkOTExdWNsM3JsYXFodTNmZDhlNTB0cmdyZG1oNGtqY2YxdHUzdXpiZmwwMHh1cjJibmVxMnBiaTI5bnJ6cmc4OWIyOXF3ZWd1Ymphd20zeHg0cTUxamNwYWJ3eXIxejAzOHQwbzc0cWNnMmtpZDJpdXFuOTd6eHZ6MmgzaHpramR3aGQzaXlwZjYwbTNobXExdmkwcTlqcDBmcXhsZW9ndTdlbndpaWpiNGh2YnVucmtneHd6czcwNmdzcmV6cWdyenluODR0am4wd3N1eGt4MG9xeDhjeHJycjZzanVibjJxbGpnbCIsImlhdCI6MTcxMDk2MzQ3N30.w4RKEgyGzCmFRLh7q7jiyjf8N10ylRHMrtAzyFDPlTU");
+const FString POGR_CLIENT = FString("5XJ4WBU1Q52PV6RKKNI6EB7AF3RDU2U8HTW2YA0Z2YQIZCGIZ6NLUD52ERPV0IGAXG19WM9ZF3PVBUYGWTRCLIQG75J3P11WRPVOCGXCHZLEN86WL3DDL7GOHIEM7E8G");
+const FString POGR_SESSION = FString("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI1MTRlYzJkOC03ZTY3LTRkMDQtODcxOS03OTkzYzU0ZTkwZmMiLCJzZXNzaW9uX3Rva2VuIjoiZnVndHM2bDV4c3I1NTViMW5kMWRzazF4ZWdodjNqMXI2cDhiY2J1NXVpaWIzODAweXlhYzMwM2dhYWV0amE3cTJkbmQ2ZTNmZzlwcmw5a2V5eTQ3ODg3bWlla3c1dGNmZ3JuajI4a25jbjV3eW51b3V4bm1icnN3OGJvZWN5bjlseHE5aWR3aWZ3cHJyeDFla201MG8wd25yZm1kcmY5OXI3ajk5aGtxaGxscDg2YmxmaGVwNTRwYzUzOWNpZGR4cWozbnF6NXhwangxcGhoanFuMWZ3dDd6YnZlZG9qaXEweGhiZDkwZnU2dmt4Zm1ldDQwYzVldG5laHBvdzRpYiIsImlhdCI6MTcxMTEwNjEwN30.-oQpkvtsXlF6i_lWlsfXt9P2tehaPPBjktLhiAWmp8E");
 
 
 const FString UPOGRSubsystem::GenerateUniqueUserAssociationId() const
@@ -286,7 +286,7 @@ void UPOGRSubsystem::SetGameMonitorAttributes(
     GamePerformanceMonitor = GameSystemMetrics;
 }
 
-void UPOGRSubsystem::GetOrganizationData(FString POGRClient, FString LoginTokken)
+void UPOGRSubsystem::GetOrganizationData()
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
@@ -294,8 +294,8 @@ void UPOGRSubsystem::GetOrganizationData(FString POGRClient, FString LoginTokken
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
-    Request->SetHeader("POGR_CLIENT", POGRClient);
-    Request->SetHeader("POGR_SESSION", POGR_SESSION);
+    Request->SetHeader("POGR_CLIENT", POGR_CLIENT);
+    Request->SetHeader("POGR_SESSION", GetAccessTokken());
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
@@ -317,6 +317,8 @@ void UPOGRSubsystem::GetOrganizationData(FString POGRClient, FString LoginTokken
                     const TArray<TSharedPtr<FJsonValue>>* OrganizationsArray;
                     if (PayloadObject->TryGetArrayField("organizations", OrganizationsArray))
                     {
+                        OrganizationData.Empty();
+
                         for (const auto& OrganizationValue : *OrganizationsArray)
                         {
                             const TSharedPtr<FJsonObject> OrganizationObject = OrganizationValue->AsObject();
@@ -335,21 +337,23 @@ void UPOGRSubsystem::GetOrganizationData(FString POGRClient, FString LoginTokken
                                     Organization.URL = LogoObject->GetStringField("url");
                                 }
 
-                                OrganizationData.Add(Organization);
-                                OnOrganizationCallback.Broadcast();
+                                OrganizationData.AddUnique(Organization);
                             }
                         }
                     }
                 }
+                Organization = OrganizationData[0];
+                OnOrganizationCallback.Broadcast();
             }
             else
                 UE_LOG(LogTemp, Error, TEXT("Failed to Fetch Oragnization Data"));
         }
     );
 
+    Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::GetOrganizationGameData(FString POGRClient, FString LoginTokken, const FString& GameUUID)
+void UPOGRSubsystem::GetOrganizationGameData(const FString& GameUUID)
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
@@ -357,8 +361,8 @@ void UPOGRSubsystem::GetOrganizationGameData(FString POGRClient, FString LoginTo
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
-    Request->SetHeader("POGR_CLIENT", POGRClient);
-    Request->SetHeader("POGR_SESSION", POGR_SESSION);
+    Request->SetHeader("POGR_CLIENT", POGR_CLIENT);
+    Request->SetHeader("POGR_SESSION", GetAccessTokken());
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
@@ -374,27 +378,34 @@ void UPOGRSubsystem::GetOrganizationGameData(FString POGRClient, FString LoginTo
                 const TArray<TSharedPtr<FJsonValue>>* PayloadArray;
                 if (ResponseObj->TryGetArrayField("payload", PayloadArray))
                 {
-                    for (const auto& PayloadValue : *PayloadArray)
+                    if (GetUpdateOptions())
                     {
-                        const TSharedPtr<FJsonObject> PayloadObject = PayloadValue->AsObject();
-                        if (PayloadObject.IsValid())
+                        OrganizationGameData.Empty();
+
+                        for (const auto& PayloadValue : *PayloadArray)
                         {
-                            FOrganizationGameData Organization;
-
-                            Organization.UUID = PayloadObject->GetStringField("uid");
-                            Organization.StudioUUID = PayloadObject->GetStringField("studio_org_uid");
-                            Organization.GameTitle = PayloadObject->GetStringField("name");
-                            Organization.CreatedOn = PayloadObject->GetStringField("created_on");
-
-                            const TSharedPtr<FJsonObject> LogoObject = PayloadObject->GetObjectField("logo");
-                            if (LogoObject.IsValid())
+                            const TSharedPtr<FJsonObject> PayloadObject = PayloadValue->AsObject();
+                            if (PayloadObject.IsValid())
                             {
-                                Organization.URL = LogoObject->GetStringField("url");
-                            }
+                                FOrganizationGameData Organization;
 
-                            OrganizationGameData.Add(Organization);
-                            OnGameCallback.Broadcast();
+                                Organization.UUID = PayloadObject->GetStringField("uid");
+                                Organization.StudioUUID = PayloadObject->GetStringField("studio_org_uid");
+                                Organization.GameTitle = PayloadObject->GetStringField("name");
+                                Organization.CreatedOn = PayloadObject->GetStringField("created_on");
+
+                                const TSharedPtr<FJsonObject> LogoObject = PayloadObject->GetObjectField("logo");
+                                if (LogoObject.IsValid())
+                                {
+                                    Organization.URL = LogoObject->GetStringField("url");
+                                }
+
+                                OrganizationGameData.AddUnique(Organization);
+                            }
                         }
+                        GameTitle = OrganizationGameData[0].GameTitle;
+                        OnGameCallback.Broadcast();
+                        bUpdateOptions = false;
                     }
                 }
             }
@@ -406,7 +417,7 @@ void UPOGRSubsystem::GetOrganizationGameData(FString POGRClient, FString LoginTo
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::GetUserProfileData(FString POGRClient, FString LoginTokken)
+void UPOGRSubsystem::GetUserProfileData()
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
@@ -414,8 +425,8 @@ void UPOGRSubsystem::GetUserProfileData(FString POGRClient, FString LoginTokken)
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
-    Request->SetHeader("POGR_CLIENT", POGRClient);
-    Request->SetHeader("POGR_SESSION", LoginTokken);
+    Request->SetHeader("POGR_CLIENT", POGR_CLIENT);
+    Request->SetHeader("POGR_SESSION", GetAccessTokken());
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
@@ -449,7 +460,7 @@ void UPOGRSubsystem::GetUserProfileData(FString POGRClient, FString LoginTokken)
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::ListDataPayloads(FString POGRClient, FString LoginTokken, FString BuildId)
+void UPOGRSubsystem::ListDataPayloads(FString BuildId)
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
@@ -457,8 +468,8 @@ void UPOGRSubsystem::ListDataPayloads(FString POGRClient, FString LoginTokken, F
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
-    Request->SetHeader("POGR_CLIENT", POGRClient);
-    Request->SetHeader("POGR_SESSION", LoginTokken);
+    Request->SetHeader("POGR_CLIENT", POGR_CLIENT);
+    Request->SetHeader("POGR_SESSION", GetAccessTokken());
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
@@ -497,10 +508,9 @@ void UPOGRSubsystem::ListDataPayloads(FString POGRClient, FString LoginTokken, F
                                 DataPayload.Calls = FCString::Atoi(*DataObject->GetStringField("calls"));
 
                                 DataPayloads.Add(DataPayload);
-
-                                OnPayloadCreationCallback.Broadcast();
                             }
                         }
+                        OnPayloadCreationCallback.Broadcast();
                     }
                     else {
                         DataPayloads.Empty();
@@ -516,7 +526,7 @@ void UPOGRSubsystem::ListDataPayloads(FString POGRClient, FString LoginTokken, F
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::UpdateDataStatus(FString POGRClient, FString LoginTokken, EAcceptedStatus AcceptedStatus, FString BuildId, FString DataId)
+void UPOGRSubsystem::UpdateDataStatus(EAcceptedStatus AcceptedStatus, FString BuildId, FString DataId)
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
@@ -524,8 +534,8 @@ void UPOGRSubsystem::UpdateDataStatus(FString POGRClient, FString LoginTokken, E
     Request->SetVerb(TEXT("PUT"));
 
     Request->SetHeader("Content-Type", "application/json");
-    Request->SetHeader("POGR_CLIENT", POGRClient);
-    Request->SetHeader("POGR_SESSION", LoginTokken);
+    Request->SetHeader("POGR_CLIENT", POGR_CLIENT);
+    Request->SetHeader("POGR_SESSION", GetAccessTokken());
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
@@ -543,7 +553,7 @@ void UPOGRSubsystem::UpdateDataStatus(FString POGRClient, FString LoginTokken, E
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::GetDataPayloadDefinition(FString POGRClient, FString LoginTokken, FString DataId, FString BuildId)
+void UPOGRSubsystem::GetDataPayloadDefinition(FString DataId, FString BuildId)
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
@@ -551,8 +561,8 @@ void UPOGRSubsystem::GetDataPayloadDefinition(FString POGRClient, FString LoginT
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
-    Request->SetHeader("POGR_CLIENT", POGRClient);
-    Request->SetHeader("POGR_SESSION", LoginTokken);
+    Request->SetHeader("POGR_CLIENT", POGR_CLIENT);
+    Request->SetHeader("POGR_SESSION", GetAccessTokken());
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
@@ -579,7 +589,7 @@ void UPOGRSubsystem::GetDataPayloadDefinition(FString POGRClient, FString LoginT
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::GetDataReceived(FString POGRClient, FString LoginTokken, FString DataId, FString BuildId)
+void UPOGRSubsystem::GetDataReceived(FString DataId, FString BuildId)
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
@@ -587,8 +597,8 @@ void UPOGRSubsystem::GetDataReceived(FString POGRClient, FString LoginTokken, FS
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
-    Request->SetHeader("POGR_CLIENT", POGRClient);
-    Request->SetHeader("POGR_SESSION", LoginTokken);
+    Request->SetHeader("POGR_CLIENT", POGR_CLIENT);
+    Request->SetHeader("POGR_SESSION", GetAccessTokken());
 
     Request->OnProcessRequestComplete().BindLambda(
         [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
@@ -891,6 +901,8 @@ void UPOGRSubsystem::OnWebSocketMessage(const FString& Message)
                     SetAccessTokken(AccessTokken);
                     SetIsUserLoggedIn(true);
                     OnLoginComplete.Broadcast(GetIsUserLoggedIn());
+                    GetUserProfileData();
+                    GetOrganizationData();
                 }
 
                 WebSocket->Close();
@@ -928,13 +940,15 @@ const FString UPOGRSubsystem::GetSelectedOptionValue() const
 
 void UPOGRSubsystem::SetOrganizationOption(FString OrganizationValue)
 {
-    OrganizationName = OrganizationValue;
+    FString OrganizationName = OrganizationValue;
 
-    for (const auto Organization : GetOrganizationDataArray())
+    for (const auto OrgElem : GetOrganizationDataArray())
     {
-        if (OrganizationName == Organization.Name)
+        if (OrganizationName == OrgElem.Name)
         {
-            GetOrganizationGameData(POGR_CLIENT, POGR_SESSION, Organization.UUID);
+            Organization = OrgElem;
+            bUpdateOptions = true;
+            GetOrganizationGameData(Organization.UUID);
         }
     }
 }

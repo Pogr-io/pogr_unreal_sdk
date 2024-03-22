@@ -47,6 +47,11 @@ struct FOrganizationData
 
 	UPROPERTY(BlueprintReadOnly)
 	FString URL;
+
+	bool operator==(const FOrganizationData& Other) const
+	{
+		return UUID == Other.UUID && Name == Other.Name && CreatedOn == Other.CreatedOn && Type == Other.Type && URL == Other.URL;
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -54,11 +59,21 @@ struct FOrganizationGameData
 {
 	GENERATED_BODY()
 
+	UPROPERTY(BlueprintReadOnly)
 	FString UUID;
 	FString StudioUUID;
+
+	UPROPERTY(BlueprintReadOnly)
 	FString GameTitle;
+
+	UPROPERTY(BlueprintReadOnly)
 	FString URL;
 	FString CreatedOn;
+
+	bool operator==(const FOrganizationGameData& Other) const
+	{
+		return UUID == Other.UUID && StudioUUID == Other.StudioUUID && GameTitle == Other.GameTitle && CreatedOn == Other.CreatedOn && URL == Other.URL;
+	}
 };
 
 USTRUCT(BlueprintType)
@@ -66,6 +81,7 @@ struct FUserProfileData
 {
 	GENERATED_BODY()
 
+	UPROPERTY(BlueprintReadOnly)
 	FString UserName;
 	FString DisplayName;
 	FString AvatarURL;
@@ -186,26 +202,26 @@ public:
 
 public:
 	UFUNCTION(BlueprintCallable)
-	void GetOrganizationData(FString POGRClient, FString LoginTokken);
+	void GetOrganizationData();
 
 	UFUNCTION(BlueprintCallable)
-	void GetOrganizationGameData(FString POGRClient, FString LoginTokken, const FString& GameUUID);
+	void GetOrganizationGameData(const FString& GameUUID);
 
 	UFUNCTION(BlueprintCallable)
-	void GetUserProfileData(FString POGRClient, FString LoginTokken);
+	void GetUserProfileData();
 
 public:
 	UFUNCTION(BlueprintCallable)
-	void ListDataPayloads(FString POGRClient, FString LoginTokken, FString BuildId);
+	void ListDataPayloads(FString BuildId);
 
 	UFUNCTION(BlueprintCallable)
-	void UpdateDataStatus(FString POGRClient, FString LoginTokken, EAcceptedStatus AcceptedStatus, FString BuildId, FString DataId);
+	void UpdateDataStatus(EAcceptedStatus AcceptedStatus, FString BuildId, FString DataId);
 
 	UFUNCTION(BlueprintCallable)
-	void GetDataPayloadDefinition(FString POGRClient, FString LoginTokken, FString DataId, FString BuildId);
+	void GetDataPayloadDefinition(FString DataId, FString BuildId);
 
 	UFUNCTION(BlueprintCallable)
-	void GetDataReceived(FString POGRClient, FString LoginTokken, FString DataId, FString BuildId);
+	void GetDataReceived(FString DataId, FString BuildId);
 	
 	UFUNCTION(BlueprintCallable)
 	FString GetPogrUrl(URLAction Action, URLDefinition Definition, EAcceptedStatus Status = EAcceptedStatus::Ignored, FString BuildId = FString("None"), FString DataId = FString("None"));
@@ -324,7 +340,7 @@ public:
 	void SetOrganizationOption(FString OrganizationValue);
 
 	UFUNCTION(BlueprintPure)
-	const FString GetOrganizationName() const { return OrganizationName; }
+	const FOrganizationData GetOrganization() const { return Organization; }
 
 	UFUNCTION(BlueprintCallable)
 	void SetGameOption(FString GameValue);
@@ -332,7 +348,14 @@ public:
 	UFUNCTION(BlueprintPure)
 	const FString GetSelectedGameTitle() const { return GameTitle; }
 
+	UFUNCTION(BlueprintPure)
+	const FUserProfileData GetUserProfile() const { return UserProfileData; }
+
 private:
-	FString OrganizationName;
+	FOrganizationData Organization;
 	FString GameTitle;
+	
+private:
+	bool bUpdateOptions = true;
+	const bool GetUpdateOptions() const { return bUpdateOptions; }
 };
