@@ -9,6 +9,7 @@ class UJsonRequestObject;
 class UPOGREndpointSettings;
 class IHttpRequest;
 class IHttpResponse;
+class UTexture2DDynamic;
 
 typedef TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> FHttpRequestPtr;
 typedef TSharedPtr<IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
@@ -48,6 +49,9 @@ struct FOrganizationData
 	UPROPERTY(BlueprintReadOnly)
 	FString URL;
 
+	UPROPERTY(BlueprintReadOnly)
+	UTexture2D* OrganizationImage;
+
 	bool operator==(const FOrganizationData& Other) const
 	{
 		return UUID == Other.UUID && Name == Other.Name && CreatedOn == Other.CreatedOn && Type == Other.Type && URL == Other.URL;
@@ -70,6 +74,9 @@ struct FOrganizationGameData
 	FString URL;
 	FString CreatedOn;
 
+	UPROPERTY(BlueprintReadOnly)
+	UTexture2D* GameImage;
+
 	bool operator==(const FOrganizationGameData& Other) const
 	{
 		return UUID == Other.UUID && StudioUUID == Other.StudioUUID && GameTitle == Other.GameTitle && CreatedOn == Other.CreatedOn && URL == Other.URL;
@@ -88,6 +95,9 @@ struct FUserProfileData
 	int32 Level;
 	int32 Exp;
 	int32 RequiredExp;
+
+	UPROPERTY(BlueprintReadOnly)
+	UTexture2D* ProfileImage;
 };
 
 USTRUCT(BlueprintType)
@@ -346,14 +356,14 @@ public:
 	void SetGameOption(FString GameValue);
 
 	UFUNCTION(BlueprintPure)
-	const FString GetSelectedGameTitle() const { return GameTitle; }
+	const FOrganizationGameData GetSelectedGameTitle() const { return Game; }
 
 	UFUNCTION(BlueprintPure)
 	const FUserProfileData GetUserProfile() const { return UserProfileData; }
 
 private:
 	FOrganizationData Organization;
-	FString GameTitle;
+	FOrganizationGameData Game;
 	
 private:
 	bool bUpdateOptions = true;

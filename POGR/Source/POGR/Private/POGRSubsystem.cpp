@@ -340,9 +340,13 @@ void UPOGRSubsystem::GetOrganizationData()
                                 OrganizationData.AddUnique(Organization);
                             }
                         }
+
+                        if (OrganizationData.Num() > 0)
+                        {
+                            Organization = OrganizationData[0];
+                        }
                     }
                 }
-                Organization = OrganizationData[0];
                 OnOrganizationCallback.Broadcast();
             }
             else
@@ -403,7 +407,7 @@ void UPOGRSubsystem::GetOrganizationGameData(const FString& GameUUID)
                                 OrganizationGameData.AddUnique(Organization);
                             }
                         }
-                        GameTitle = OrganizationGameData[0].GameTitle;
+                        Game = OrganizationGameData[0];
                         OnGameCallback.Broadcast();
                         bUpdateOptions = false;
                     }
@@ -963,7 +967,15 @@ FString UPOGRSubsystem::ConstructOrgGameURL(const FString& Id)
 
 void UPOGRSubsystem::SetGameOption(FString GameValue)
 {
-    GameTitle = GameValue;
+    FString GameTitle = GameValue;
+
+    for (const auto GameElem : GetOrganizationGameDataArray())
+    {
+        if (GameTitle == GameElem.GameTitle)
+        {
+            Game = GameElem;
+        }
+    }
 }
 
 /*
