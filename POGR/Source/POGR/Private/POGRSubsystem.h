@@ -91,13 +91,15 @@ struct FUserProfileData
 	UPROPERTY(BlueprintReadOnly)
 	FString UserName;
 	FString DisplayName;
+
+	UPROPERTY(BlueprintReadOnly)
 	FString AvatarURL;
 	int32 Level;
 	int32 Exp;
 	int32 RequiredExp;
 
 	UPROPERTY(BlueprintReadOnly)
-	UTexture2D* ProfileImage;
+	UTexture2DDynamic* ProfileImage;
 };
 
 USTRUCT(BlueprintType)
@@ -154,6 +156,9 @@ public:
 public:
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem | Login")
 	void Login();
+
+	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem | LogOut")
+	void LogOut();
 
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
 	void CreateSession(const FString& ClientId, const FString& BuildId, const FString& AssociationId);
@@ -368,4 +373,33 @@ private:
 private:
 	bool bUpdateOptions = true;
 	const bool GetUpdateOptions() const { return bUpdateOptions; }
+
+public:
+	UFUNCTION(BlueprintCallable)
+	void SetGameTitleTexture(UTexture2DDynamic* Texture)
+	{
+		GameTitleTexture = Texture;
+	}
+
+	UFUNCTION(BlueprintCallable)
+	void SetOrganizationTitleTexture(UTexture2DDynamic* Texture)
+	{
+		OrganizationTitleTexture = Texture;
+	}
+
+	UFUNCTION(BlueprintCallable)
+	void SetUserProfileTexture(UTexture2DDynamic* Texture)
+	{
+		UserProfileData.ProfileImage = Texture;
+	}
+
+	UFUNCTION(BlueprintPure)
+	const UTexture2DDynamic* GetGameTitleTexture() const { return GameTitleTexture; }
+
+	UFUNCTION(BlueprintPure)
+	const UTexture2DDynamic* GetOrganizationTitleTexture() const { return OrganizationTitleTexture; }
+
+private:
+	UTexture2DDynamic* GameTitleTexture;
+	UTexture2DDynamic* OrganizationTitleTexture;
 };

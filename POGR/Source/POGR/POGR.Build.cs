@@ -43,7 +43,8 @@ public class POGR : ModuleRules
                 "HTTP",
                 "Json",
                 "WebSockets",
-                "DeveloperSettings"
+                "DeveloperSettings",
+				"UMG"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

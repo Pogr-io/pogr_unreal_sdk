@@ -14,6 +14,7 @@
 #include "Helpers/POGRGameLogs.h"
 #include "Helpers/POGRGameMetrics.h"
 #include "Helpers/POGRGameMonitor.h"
+#include "Blueprint/AsyncTaskDownloadImage.h"
 
 const FString POGR_CLIENT = FString("5XJ4WBU1Q52PV6RKKNI6EB7AF3RDU2U8HTW2YA0Z2YQIZCGIZ6NLUD52ERPV0IGAXG19WM9ZF3PVBUYGWTRCLIQG75J3P11WRPVOCGXCHZLEN86WL3DDL7GOHIEM7E8G");
 const FString POGR_SESSION = FString("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI1MTRlYzJkOC03ZTY3LTRkMDQtODcxOS03OTkzYzU0ZTkwZmMiLCJzZXNzaW9uX3Rva2VuIjoiZnVndHM2bDV4c3I1NTViMW5kMWRzazF4ZWdodjNqMXI2cDhiY2J1NXVpaWIzODAweXlhYzMwM2dhYWV0amE3cTJkbmQ2ZTNmZzlwcmw5a2V5eTQ3ODg3bWlla3c1dGNmZ3JuajI4a25jbjV3eW51b3V4bm1icnN3OGJvZWN5bjlseHE5aWR3aWZ3cHJyeDFla201MG8wd25yZm1kcmY5OXI3ajk5aGtxaGxscDg2YmxmaGVwNTRwYzUzOWNpZGR4cWozbnF6NXhwangxcGhoanFuMWZ3dDd6YnZlZG9qaXEweGhiZDkwZnU2dmt4Zm1ldDQwYzVldG5laHBvdzRpYiIsImlhdCI6MTcxMTEwNjEwN30.-oQpkvtsXlF6i_lWlsfXt9P2tehaPPBjktLhiAWmp8E");
@@ -800,10 +801,7 @@ void UPOGRSubsystem::SetSessionId(FString SessionId)
 
 void UPOGRSubsystem::SetAccessTokken(FString Payload)
 {
-    if (!Payload.IsEmpty())
-    {
-        AccessTokken = *Payload;
-    }
+    AccessTokken = *Payload;
 }
 
 void UPOGRSubsystem::SetIsUserLoggedIn(bool LoginStatus)
@@ -853,6 +851,15 @@ void UPOGRSubsystem::Login()
     {
         UE_LOG(LogTemp, Error, TEXT("Failed to create WebSocket object for URL: %s"));
     }
+}
+
+void UPOGRSubsystem::LogOut()
+{
+    SetAccessTokken(FString());
+    SetIsUserLoggedIn(false);
+    UserProfileData = FUserProfileData();
+    OrganizationData.Empty();
+    OrganizationGameData.Empty();
 }
 
 void UPOGRSubsystem::OnWebSocketConnected()
