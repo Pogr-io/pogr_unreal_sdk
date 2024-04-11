@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/EngineSubsystem.h"
+#include "Helpers/POGRURLFilters.h"
 #include "POGRSubsystem.generated.h"
 
 class IWebSocket;
@@ -14,7 +15,6 @@ class UTexture2DDynamic;
 typedef TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> FHttpRequestPtr;
 typedef TSharedPtr<IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
 
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLoginComplete, bool, bLoginStatus);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnSessionCreationCallback);
 
@@ -23,124 +23,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnGameCallback);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPayloadDataUpdate);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnPayloadCreationCallback);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPayloadCallback, FString, Content);
-
-UENUM(BlueprintType)
-enum EAcceptedStatus : uint8
-{
-	Pending,
-	Saved,
-	Ignored,
-	None
-};
-
-USTRUCT(BlueprintType)
-struct FOrganizationData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadOnly)
-	FString UUID;
-
-	UPROPERTY(BlueprintReadOnly)
-	FString Name;
-	FString CreatedOn;
-	FString Type;
-
-	UPROPERTY(BlueprintReadOnly)
-	FString URL;
-
-	UPROPERTY(BlueprintReadOnly)
-	UTexture2D* OrganizationImage;
-
-	bool operator==(const FOrganizationData& Other) const
-	{
-		return UUID == Other.UUID && Name == Other.Name && CreatedOn == Other.CreatedOn && Type == Other.Type && URL == Other.URL;
-	}
-};
-
-USTRUCT(BlueprintType)
-struct FOrganizationGameData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadOnly)
-	FString UUID;
-	FString StudioUUID;
-
-	UPROPERTY(BlueprintReadOnly)
-	FString GameTitle;
-
-	UPROPERTY(BlueprintReadOnly)
-	FString URL;
-	FString CreatedOn;
-
-	UPROPERTY(BlueprintReadOnly)
-	UTexture2D* GameImage;
-
-	bool operator==(const FOrganizationGameData& Other) const
-	{
-		return UUID == Other.UUID && StudioUUID == Other.StudioUUID && GameTitle == Other.GameTitle && CreatedOn == Other.CreatedOn && URL == Other.URL;
-	}
-};
-
-USTRUCT(BlueprintType)
-struct FUserProfileData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadOnly)
-	FString UserName;
-	FString DisplayName;
-
-	UPROPERTY(BlueprintReadOnly)
-	FString AvatarURL;
-	int32 Level;
-	int32 Exp;
-	int32 RequiredExp;
-
-	UPROPERTY(BlueprintReadOnly)
-	UTexture2DDynamic* ProfileImage;
-};
-
-USTRUCT(BlueprintType)
-struct FDataPayload
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite)
-	FString Id;
-
-	UPROPERTY(BlueprintReadWrite)
-	FString ClientId;
-
-	UPROPERTY(BlueprintReadWrite)
-	FString BuildId;
-
-	UPROPERTY(BlueprintReadWrite)
-	TEnumAsByte<EAcceptedStatus> AcceptedStatus;
-
-	UPROPERTY(BlueprintReadWrite)
-	FString DataReceivedDate;
-
-	UPROPERTY(BlueprintReadWrite)
-	int32 Calls;
-};
-
-UENUM()
-enum URLDefinition : uint8 {
-	Data,
-	Events,
-	Logs,
-	Metrics
-};
-
-UENUM()
-enum URLAction : uint8 {
-	List,
-	Update,
-	Definition,
-	Receiving
-};
 
 UCLASS()
 class UPOGRSubsystem : public UEngineSubsystem
@@ -227,16 +109,16 @@ public:
 
 public:
 	UFUNCTION(BlueprintCallable)
-	void ListDataPayloads(FString BuildId);
+	void ListDataPayloads();
 
 	UFUNCTION(BlueprintCallable)
-	void UpdateDataStatus(EAcceptedStatus AcceptedStatus, FString BuildId, FString DataId);
+	void UpdateDataStatus(EAcceptedStatus AcceptedStatus, FString DataId);
 
 	UFUNCTION(BlueprintCallable)
-	void GetDataPayloadDefinition(FString DataId, FString BuildId);
+	void GetDataPayloadDefinition(FString DataId);
 
 	UFUNCTION(BlueprintCallable)
-	void GetDataReceived(FString DataId, FString BuildId);
+	void GetDataReceived(FString DataId);
 	
 	UFUNCTION(BlueprintCallable)
 	FString GetPogrUrl(URLAction Action, URLDefinition Definition, EAcceptedStatus Status = EAcceptedStatus::Ignored, FString BuildId = FString("None"), FString DataId = FString("None"));
@@ -251,7 +133,13 @@ public:
 	const TArray<FOrganizationGameData> GetOrganizationGameDataArray() const { return OrganizationGameData; }
 
 	UFUNCTION(BlueprintCallable)
+	void SetPayloadDatatype(URLDefinition PayloadDatatype);
+
+	UFUNCTION(BlueprintCallable)
 	FString ConstructOrgGameURL(const FString& Id);
+
+	UFUNCTION(BlueprintCallable)
+	FString ConstructGameDetailURL(const FString& Id);
 
 public:
 	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
@@ -269,6 +157,48 @@ public:
 	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
 	const bool IsSessionActive() const { return bIsSessionActive; }
 
+	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
+	const FString GetGameBuildId() const { return GameBuildId; }
+
+	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
+	const FString GetContentAsString() const { return ContentAsString; }
+
+	UFUNCTION(BlueprintPure, Category = "POGR Subsystem | Utilities")
+	const FString GetSelectedOptionValue() const;
+
+	// Selecting An Organization And Game
+public:
+	UFUNCTION(BlueprintCallable)
+	void SetOrganizationOption(FString OrganizationValue);
+
+	UFUNCTION(BlueprintPure)
+	const FOrganizationData GetOrganization() const { return Organization; }
+
+	UFUNCTION(BlueprintCallable)
+	void SetGameOption(FString GameValue);
+
+	UFUNCTION(BlueprintPure)
+	const FOrganizationGameData GetSelectedGameTitle() const { return Game; }
+
+	UFUNCTION(BlueprintPure)
+	const FUserProfileData GetUserProfile() const { return UserProfileData; }
+
+public:
+	UFUNCTION(BlueprintCallable)
+	void SetGameTitleTexture(UTexture2DDynamic* Texture);
+
+	UFUNCTION(BlueprintCallable)
+	void SetOrganizationTitleTexture(UTexture2DDynamic* Texture);
+
+	UFUNCTION(BlueprintCallable)
+	void SetUserProfileTexture(UTexture2DDynamic* Texture);
+
+	UFUNCTION(BlueprintPure)
+	const UTexture2DDynamic* GetGameTitleTexture() const { return GameTitleTexture; }
+
+	UFUNCTION(BlueprintPure)
+	const UTexture2DDynamic* GetOrganizationTitleTexture() const { return OrganizationTitleTexture; }
+
 protected:
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
@@ -283,6 +213,10 @@ private:
 	void SetSessionId(FString SessionId);
 	void SetAccessTokken(FString Payload);
 	void SetIsUserLoggedIn(bool LoginStatus);
+	void SetGameBuildId(FString GameUUID);
+	void SetContentAsString(FString Content);
+	const URLDefinition GetPayloadDatatype() const { return PayloadDefinition; }
+	const bool GetUpdateOptions() const { return bUpdateOptions; }
 /*
     * Login Callback Helper Function *
 */
@@ -291,22 +225,6 @@ private:
 	void OnWebSocketError(const FString& Error);
 	void OnWebSocketClosed(int32 StatusCode, const FString& Reason, bool bWasClean);
 	void OnWebSocketMessage(const FString& Message);
-
-private:
-	const class UPOGREndpointSettings* POGRSettings;
-	FString ActiveSessionId = FString();
-	FString AccessTokken = FString();
-	UJsonRequestObject* JsonObject;
-	TSharedPtr<IWebSocket> WebSocket;
-	bool IsLoggedIn;
-	bool bIsSessionActive;
-
-private:
-	FUserProfileData UserProfileData;
-	TArray<FOrganizationData> OrganizationData;
-	TArray<FOrganizationGameData> OrganizationGameData;
-	TArray<FDataPayload> DataPayloads;
-	FString ContentAsString;
 
 public:
 	UPROPERTY(BlueprintAssignable)
@@ -330,76 +248,34 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnGameCallback OnGameCallback;
 
-public:
-	void SetContentAsString(FString Content);
-
-	UFUNCTION(BlueprintPure)
-	const FString GetContentAsString() const { return ContentAsString; }
-
-public:
-	UFUNCTION(BlueprintCallable)
-	void SetPayloadDatatype(URLDefinition PayloadDatatype);
-
-	UFUNCTION(BlueprintPure)
-	const FString GetSelectedOptionValue() const;
+private:
+	const class UPOGREndpointSettings* POGRSettings;
+	FString ActiveSessionId = FString();
+	FString AccessTokken = FString();
+	UJsonRequestObject* JsonObject;
+	TSharedPtr<IWebSocket> WebSocket;
+	bool IsLoggedIn;
+	bool bIsSessionActive;
+	FString GameBuildId;
 
 private:
-	const URLDefinition GetPayloadDatatype() const { return PayloadDefinition; }
+	FUserProfileData UserProfileData;
+	TArray<FOrganizationData> OrganizationData;
+	TArray<FOrganizationGameData> OrganizationGameData;
+	TArray<FDataPayload> DataPayloads;
+	FString ContentAsString;
+
+private:
+	UTexture2DDynamic* GameTitleTexture;
+	UTexture2DDynamic* OrganizationTitleTexture;
 
 private:
 	URLDefinition PayloadDefinition = URLDefinition::Data;
-	
-	// Selecting An Organization And Game
-public:
-	UFUNCTION(BlueprintCallable)
-	void SetOrganizationOption(FString OrganizationValue);
-
-	UFUNCTION(BlueprintPure)
-	const FOrganizationData GetOrganization() const { return Organization; }
-
-	UFUNCTION(BlueprintCallable)
-	void SetGameOption(FString GameValue);
-
-	UFUNCTION(BlueprintPure)
-	const FOrganizationGameData GetSelectedGameTitle() const { return Game; }
-
-	UFUNCTION(BlueprintPure)
-	const FUserProfileData GetUserProfile() const { return UserProfileData; }
 
 private:
 	FOrganizationData Organization;
 	FOrganizationGameData Game;
 	
 private:
-	bool bUpdateOptions = true;
-	const bool GetUpdateOptions() const { return bUpdateOptions; }
-
-public:
-	UFUNCTION(BlueprintCallable)
-	void SetGameTitleTexture(UTexture2DDynamic* Texture)
-	{
-		GameTitleTexture = Texture;
-	}
-
-	UFUNCTION(BlueprintCallable)
-	void SetOrganizationTitleTexture(UTexture2DDynamic* Texture)
-	{
-		OrganizationTitleTexture = Texture;
-	}
-
-	UFUNCTION(BlueprintCallable)
-	void SetUserProfileTexture(UTexture2DDynamic* Texture)
-	{
-		UserProfileData.ProfileImage = Texture;
-	}
-
-	UFUNCTION(BlueprintPure)
-	const UTexture2DDynamic* GetGameTitleTexture() const { return GameTitleTexture; }
-
-	UFUNCTION(BlueprintPure)
-	const UTexture2DDynamic* GetOrganizationTitleTexture() const { return OrganizationTitleTexture; }
-
-private:
-	UTexture2DDynamic* GameTitleTexture;
-	UTexture2DDynamic* OrganizationTitleTexture;
+	bool bUpdateOptions = true;	
 };

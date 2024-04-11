@@ -14,10 +14,14 @@
 #include "Helpers/POGRGameLogs.h"
 #include "Helpers/POGRGameMetrics.h"
 #include "Helpers/POGRGameMonitor.h"
+#include "Helpers/POGRURLFilters.h"
+#include "Helpers/POGROrganizationData.h"
+#include "Helpers/POGRDataPayload.h"
+#include "Helpers/POGRProfileData.h"
+#include "Helpers/POGRGameData.h"
 #include "Blueprint/AsyncTaskDownloadImage.h"
 
 const FString POGR_CLIENT = FString("5XJ4WBU1Q52PV6RKKNI6EB7AF3RDU2U8HTW2YA0Z2YQIZCGIZ6NLUD52ERPV0IGAXG19WM9ZF3PVBUYGWTRCLIQG75J3P11WRPVOCGXCHZLEN86WL3DDL7GOHIEM7E8G");
-const FString POGR_SESSION = FString("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI1MTRlYzJkOC03ZTY3LTRkMDQtODcxOS03OTkzYzU0ZTkwZmMiLCJzZXNzaW9uX3Rva2VuIjoiZnVndHM2bDV4c3I1NTViMW5kMWRzazF4ZWdodjNqMXI2cDhiY2J1NXVpaWIzODAweXlhYzMwM2dhYWV0amE3cTJkbmQ2ZTNmZzlwcmw5a2V5eTQ3ODg3bWlla3c1dGNmZ3JuajI4a25jbjV3eW51b3V4bm1icnN3OGJvZWN5bjlseHE5aWR3aWZ3cHJyeDFla201MG8wd25yZm1kcmY5OXI3ajk5aGtxaGxscDg2YmxmaGVwNTRwYzUzOWNpZGR4cWozbnF6NXhwangxcGhoanFuMWZ3dDd6YnZlZG9qaXEweGhiZDkwZnU2dmt4Zm1ldDQwYzVldG5laHBvdzRpYiIsImlhdCI6MTcxMTEwNjEwN30.-oQpkvtsXlF6i_lWlsfXt9P2tehaPPBjktLhiAWmp8E");
 
 
 const FString UPOGRSubsystem::GenerateUniqueUserAssociationId() const
@@ -405,6 +409,12 @@ void UPOGRSubsystem::GetOrganizationGameData(const FString& GameUUID)
                                     Organization.URL = LogoObject->GetStringField("url");
                                 }
 
+                                const TSharedPtr<FJsonObject> GameBuildIdObject = PayloadObject->GetObjectField("game_build");
+                                if (GameBuildIdObject.IsValid())
+                                {
+                                    SetGameBuildId(Organization.UUID);
+                                }
+
                                 OrganizationGameData.AddUnique(Organization);
                             }
                         }
@@ -465,11 +475,11 @@ void UPOGRSubsystem::GetUserProfileData()
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::ListDataPayloads(FString BuildId)
+void UPOGRSubsystem::ListDataPayloads()
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
-    Request->SetURL(GetPogrUrl(URLAction::List, GetPayloadDatatype(), EAcceptedStatus::Ignored, BuildId));
+    Request->SetURL(GetPogrUrl(URLAction::List, GetPayloadDatatype(), EAcceptedStatus::Ignored, GetGameBuildId()));
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
@@ -531,11 +541,11 @@ void UPOGRSubsystem::ListDataPayloads(FString BuildId)
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::UpdateDataStatus(EAcceptedStatus AcceptedStatus, FString BuildId, FString DataId)
+void UPOGRSubsystem::UpdateDataStatus(EAcceptedStatus AcceptedStatus, FString DataId)
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
-    Request->SetURL(GetPogrUrl(URLAction::Update, GetPayloadDatatype(), AcceptedStatus, BuildId, DataId));
+    Request->SetURL(GetPogrUrl(URLAction::Update, GetPayloadDatatype(), AcceptedStatus, GetGameBuildId(), DataId));
     Request->SetVerb(TEXT("PUT"));
 
     Request->SetHeader("Content-Type", "application/json");
@@ -558,11 +568,11 @@ void UPOGRSubsystem::UpdateDataStatus(EAcceptedStatus AcceptedStatus, FString Bu
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::GetDataPayloadDefinition(FString DataId, FString BuildId)
+void UPOGRSubsystem::GetDataPayloadDefinition(FString DataId)
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
-    Request->SetURL(GetPogrUrl(URLAction::Definition, GetPayloadDatatype(), EAcceptedStatus::None, BuildId, DataId));
+    Request->SetURL(GetPogrUrl(URLAction::Definition, GetPayloadDatatype(), EAcceptedStatus::None, GetGameBuildId(), DataId));
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
@@ -594,11 +604,11 @@ void UPOGRSubsystem::GetDataPayloadDefinition(FString DataId, FString BuildId)
     Request->ProcessRequest();
 }
 
-void UPOGRSubsystem::GetDataReceived(FString DataId, FString BuildId)
+void UPOGRSubsystem::GetDataReceived(FString DataId)
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
-    Request->SetURL(GetPogrUrl(URLAction::Receiving, GetPayloadDatatype(), EAcceptedStatus::None, BuildId, DataId));
+    Request->SetURL(GetPogrUrl(URLAction::Receiving, GetPayloadDatatype(), EAcceptedStatus::None, GetGameBuildId(), DataId));
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
@@ -761,6 +771,21 @@ UJsonRequestObject* UPOGRSubsystem::GetJsonRequestObject()
     return JsonObject;
 }
 
+void UPOGRSubsystem::SetGameTitleTexture(UTexture2DDynamic* Texture)
+{
+    GameTitleTexture = Texture;
+}
+
+void UPOGRSubsystem::SetOrganizationTitleTexture(UTexture2DDynamic* Texture)
+{
+    OrganizationTitleTexture = Texture;
+}
+
+void UPOGRSubsystem::SetUserProfileTexture(UTexture2DDynamic* Texture)
+{
+    UserProfileData.ProfileImage = Texture;
+}
+
 void UPOGRSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
     POGRSettings = GetMutableDefault<UPOGREndpointSettings>();
@@ -807,6 +832,44 @@ void UPOGRSubsystem::SetAccessTokken(FString Payload)
 void UPOGRSubsystem::SetIsUserLoggedIn(bool LoginStatus)
 {
     IsLoggedIn = LoginStatus;
+}
+
+void UPOGRSubsystem::SetGameBuildId(FString GameUUID)
+{
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+
+    Request->SetURL(ConstructGameDetailURL(GameUUID));
+    Request->SetVerb(TEXT("GET"));
+
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("POGR_CLIENT", POGR_CLIENT);
+    Request->SetHeader("POGR_SESSION", GetAccessTokken());
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
+        {
+            if (bSuccess && HttpResponse.IsValid() && HttpResponse->GetResponseCode() == EHttpResponseCodes::Type::Ok)
+            {
+                TSharedPtr<FJsonObject> ResponseObj;
+                if (HttpResponse != NULL) {
+                    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
+                    FJsonSerializer::Deserialize(Reader, ResponseObj);
+                }
+
+                const auto PayloadObject = ResponseObj->GetObjectField("payload");
+                if (PayloadObject.IsValid())
+                {
+                    const TSharedPtr<FJsonObject> GameBuildIdObject = PayloadObject->GetObjectField("game_build");
+                    if (GameBuildIdObject.IsValid())
+                    {
+                        GameBuildId = GameBuildIdObject->GetStringField("build_id");
+                    }
+                }
+            }
+        }
+    );
+
+    Request->ProcessRequest();
 }
 
 void UPOGRSubsystem::OnResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bConnectedSuccessfully)
@@ -967,8 +1030,14 @@ void UPOGRSubsystem::SetOrganizationOption(FString OrganizationValue)
 FString UPOGRSubsystem::ConstructOrgGameURL(const FString& Id)
 {
     FString BaseURL = FString("https://api-stage.pogr.io/v1//organizations/");
-    // Construct the complete URL
     FString URL = BaseURL + Id + "/plugins/games";
+    return URL;
+}
+
+FString UPOGRSubsystem::ConstructGameDetailURL(const FString& Id)
+{
+    FString BaseURL = FString("https://api-stage.pogr.io/v1//games//plugin/");
+    FString URL = BaseURL + Id;
     return URL;
 }
 
@@ -984,25 +1053,3 @@ void UPOGRSubsystem::SetGameOption(FString GameValue)
         }
     }
 }
-
-/*
-    - Break the URL to Understand how many parameters are required to fullfill the Command 
-    * Listing URL required two things - what need to be list down - Build Id
-    * Update URL required four things - what need to be updated - Id of the Data Defination - status - build Id
-    * Data Defination URL requried three things - what need to be defined - Id of the Data Defination - build Id
-    * Data Received URL required three things - what need to be received - Id of the Data Defination - build Id
-*/
-
-/*
-    * {{POGR_API}}{{API_VERSION}}widget/data/developer-review/
-    list-data-payloads?build_id=8216bfc4738d3789f684f9d3f117935e5af49f04c8baa6ed70d11a8e686d764c315e439dc6ee4d6abf52d333a3ca64a246e554bb0709255dbfc287deb311ff8b
-    * {{POGR_API}}{{API_VERSION}}widget/data/developer-review/
-    update-status/data/65c875999de8d314e9f5c1d3?status=Save&build_id=8216bfc4738d3789f684f9d3f117935e5af49f04c8baa6ed70d11a8e686d764c315e439dc6ee4d6abf52d333a3ca64a246e554bb0709255dbfc287deb311ff8b
-    * {{POGR_API}}{{API_VERSION}}widget/data/developer-review/
-    get-data-payload-definition/65efe09d5753fce8bad793bf?build_id=8216bfc4738d3789f684f9d3f117935e5af49f04c8baa6ed70d11a8e686d764c315e439dc6ee4d6abf52d333a3ca64a246e554bb0709255dbfc287deb311ff8b
-    * {{POGR_API}}{{API_VERSION}}widget/data/developer-review/
-    get-data-received/65c8773d9de8d314e9f5c1d4?build_id=8216bfc4738d3789f684f9d3f117935e5af49f04c8baa6ed70d11a8e686d764c315e439dc6ee4d6abf52d333a3ca64a246e554bb0709255dbfc287deb311ff8b
-
-*/
-
-// {{POGR_API}}{{API_VERSION}}widget/data/developer-review/get-logs-received/?build_id=8216bfc4738d3789f684f9d3f117935e5af49f04c8baa6ed70d11a8e686d764c315e439dc6ee4d6abf52d333a3ca64a246e554bb0709255dbfc287deb311ff8b
