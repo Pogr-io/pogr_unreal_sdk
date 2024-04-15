@@ -1050,6 +1050,7 @@ void UPOGRSubsystem::SetGameOption(FString GameValue)
         if (GameTitle == GameElem.GameTitle)
         {
             Game = GameElem;
+            SetGameBuildId(Game.UUID);
         }
     }
 }
