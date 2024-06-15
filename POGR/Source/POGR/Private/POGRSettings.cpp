@@ -82,6 +82,61 @@ FString UPOGREndpointSettings::GetMonitorEndpoint() const
 	return HostString = "Monitor Endpoint is not Defined.";
 }
 
+FString UPOGREndpointSettings::GetOrgDataEndpoint() const
+{
+	FString HostString = FString();
+	if (!OrganizationDataEndpoint.IsEmpty())
+		HostString = OrganizationDataEndpoint;
+	if (IsValidIPAddress(HostString) || IsValidURL(HostString))
+		return HostString;
+	UE_LOG(LogTemp, Error, TEXT("POGR Organization Data Endpoint is not defined or incorrect IP/URL under Plugin (POGR) Project Settings"));
+	return HostString = "Organization Data Endpoint is not Defined.";
+}
+
+FString UPOGREndpointSettings::GetPogrUrlDefinationEndpoint() const
+{
+	FString HostString = FString();
+	if (!POGRUrlDefinationEndpoint.IsEmpty())
+		HostString = POGRUrlDefinationEndpoint;
+	if (IsValidIPAddress(HostString) || IsValidURL(HostString))
+		return HostString;
+	UE_LOG(LogTemp, Error, TEXT("POGR Generic URL Endpoint is not defined or incorrect IP/URL under Plugin (POGR) Project Settings"));
+	return HostString = "POGR Generic URL Endpoint is not Defined.";
+}
+
+FString UPOGREndpointSettings::GetOrgGameDataEndpoint() const
+{
+	FString HostString = FString();
+	if (!GameDataEndpoint.IsEmpty())
+		HostString = GameDataEndpoint;
+	if (IsValidIPAddress(HostString) || IsValidURL(HostString))
+		return HostString;
+	UE_LOG(LogTemp, Error, TEXT("POGR Organization Game Data Endpoint is not defined or incorrect IP/URL under Plugin (POGR) Project Settings"));
+	return HostString = "Organization Game Data Endpoint is not Defined.";
+}
+
+FString UPOGREndpointSettings::GetOrgGameEndpoint() const
+{
+	FString HostString = FString();
+	if (!OragnizationGameEndpoint.IsEmpty())
+		HostString = OragnizationGameEndpoint;
+	if (IsValidIPAddress(HostString) || IsValidURL(HostString))
+		return HostString;
+	UE_LOG(LogTemp, Error, TEXT("POGR Organization Game Endpoint is not defined or incorrect IP/URL under Plugin (POGR) Project Settings"));
+	return HostString = "Organization Game Endpoint is not Defined.";
+}
+
+FString UPOGREndpointSettings::GetProfileDataEndpoint() const
+{
+	FString HostString = FString();
+	if (!ProfileDataEndpoint.IsEmpty())
+		HostString = ProfileDataEndpoint;
+	if (IsValidIPAddress(HostString) || IsValidURL(HostString))
+		return HostString;
+	UE_LOG(LogTemp, Error, TEXT("POGR Profile Data Endpoint is not defined or incorrect IP/URL under Plugin (POGR) Project Settings"));
+	return HostString = "Profile Data Endpoint is not Defined.";
+}
+
 bool UPOGREndpointSettings::IsValidIPAddress(const FString& IPAddressString) const
 {
 	const FRegexPattern IPv4Pattern(TEXT("^\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b"));

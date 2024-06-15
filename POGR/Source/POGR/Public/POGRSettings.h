@@ -20,6 +20,11 @@ public:
 	FString GetLogsEndpoint() const;
 	FString GetMetricsEndpoint() const;
 	FString GetMonitorEndpoint() const;
+	FString GetOrgDataEndpoint() const;
+	FString GetPogrUrlDefinationEndpoint() const;
+	FString GetOrgGameDataEndpoint() const;
+	FString GetOrgGameEndpoint() const;
+	FString GetProfileDataEndpoint() const;
 
 	/**Validate weather Endpoint is Valid*/
 	bool IsValidIPAddress(const FString& IPAddressString) const;
@@ -47,4 +52,18 @@ private:
 	UPROPERTY(config, EditAnywhere, Category = Settings)
 	FString MonitorEndpoint = "";
 
+	UPROPERTY(config, EditAnywhere, Category = Settings)
+	FString OrganizationDataEndpoint = "";
+
+	UPROPERTY(config, EditAnywhere, Category = Settings)
+	FString POGRUrlDefinationEndpoint = "";
+
+	UPROPERTY(config, EditAnywhere, Category = Settings)
+	FString OragnizationGameEndpoint = "";
+
+	UPROPERTY(config, EditAnywhere, Category = Settings)
+	FString GameDataEndpoint = "";
+
+	UPROPERTY(config, EditAnywhere, Category = Settings)
+	FString ProfileDataEndpoint = "";
 };

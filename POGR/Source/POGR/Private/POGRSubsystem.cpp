@@ -31,12 +31,13 @@ const FString UPOGRSubsystem::GenerateUniqueUserAssociationId() const
     return AssociationId;
 }
 
-void UPOGRSubsystem::CreateSession(const FString& ClientId, const FString& BuildId, const FString& AssociationId)
+void UPOGRSubsystem::CreateSessionWithAssociationId(const FString& ClientId, const FString& BuildId, const FString& AssociationId)
 {    
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
     TSharedRef<FJsonObject> RequestObj = MakeShared<FJsonObject>();
 
     RequestObj->SetStringField("association_id", AssociationId);
+    // RequestObj->SetHeader() //Authorization Required in the header. {Lookout for the comment under the File}
 
     FString RequestBody;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&RequestBody);
@@ -50,6 +51,64 @@ void UPOGRSubsystem::CreateSession(const FString& ClientId, const FString& Build
     Request->SetHeader("POGR_CLIENT", ClientId);
     Request->SetHeader("POGR_BUILD", BuildId);
     
+    Request->SetContentAsString(RequestBody);
+
+    Request->OnProcessRequestComplete().BindLambda(
+        [this](FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSuccess)
+        {
+            if (bSuccess && HttpResponse.IsValid() && HttpResponse->GetResponseCode() == EHttpResponseCodes::Type::Ok)
+            {
+                TSharedPtr<FJsonObject> ResponseObj;
+                if (HttpResponse != NULL) {
+                    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(HttpResponse->GetContentAsString());
+                    FJsonSerializer::Deserialize(Reader, ResponseObj);
+                }
+
+                if (ResponseObj->HasField("payload"))
+                {
+                    // Get the "payload" object
+                    TSharedPtr<FJsonObject> PayloadObject = ResponseObj->GetObjectField("payload");
+
+                    // Check if the "payload" object contains the "redirect_url" field
+                    if (PayloadObject->HasField("session_id"))
+                    {
+                        FString SessionId = PayloadObject->GetStringField("session_id");
+
+                        if (!SessionId.IsEmpty())
+                        {
+                            SetSessionId(SessionId);
+                            bIsSessionActive = true;
+                            OnSessionCreationCallback.Broadcast();
+                        }
+                    }
+                }
+            }
+            else
+                UE_LOG(LogTemp, Error, TEXT("Failed to Create Session"));
+        }
+    );
+
+    Request->ProcessRequest();
+}
+
+void UPOGRSubsystem::CreateSessionWithTokken(const FString& ClientId, const FString& BuildId, const FString& JwtToken)
+{
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+    TSharedRef<FJsonObject> RequestObj = MakeShared<FJsonObject>();
+
+    FString RequestBody;
+    TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&RequestBody);
+    FJsonSerializer::Serialize(RequestObj, Writer);
+
+
+    Request->SetURL(POGRSettings->GetInitEndpoint());
+    Request->SetVerb(TEXT("POST"));
+
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("POGR_CLIENT", ClientId);
+    Request->SetHeader("POGR_BUILD", BuildId);
+    Request->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *JwtToken));
+
     Request->SetContentAsString(RequestBody);
 
     Request->OnProcessRequestComplete().BindLambda(
@@ -295,7 +354,7 @@ void UPOGRSubsystem::GetOrganizationData()
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
-    Request->SetURL(FString("https://api-stage.pogr.io/v1/organizations/plugins/studios"));
+    Request->SetURL(POGRSettings->GetOrgDataEndpoint());
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
@@ -436,7 +495,7 @@ void UPOGRSubsystem::GetUserProfileData()
 {
     TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 
-    Request->SetURL(FString("https://api-stage.pogr.io/v1/user/plugins/profile"));
+    Request->SetURL(POGRSettings->GetProfileDataEndpoint());
     Request->SetVerb(TEXT("GET"));
 
     Request->SetHeader("Content-Type", "application/json");
@@ -643,7 +702,7 @@ void UPOGRSubsystem::GetDataReceived(FString DataId)
 FString UPOGRSubsystem::GetPogrUrl(URLAction Action, URLDefinition Definition, EAcceptedStatus Status, FString BuildId, FString DataId)
 {
     FString URL = FString();
-    FString BaseURL = FString("https://api-stage.pogr.io/v1/widget/data/developer-review/");
+    FString BaseURL = POGRSettings->GetPogrUrlDefinationEndpoint();
 
     switch (Action)
     {
@@ -1029,14 +1088,14 @@ void UPOGRSubsystem::SetOrganizationOption(FString OrganizationValue)
 
 FString UPOGRSubsystem::ConstructOrgGameURL(const FString& Id)
 {
-    FString BaseURL = FString("https://api-stage.pogr.io/v1//organizations/");
+    FString BaseURL = POGRSettings->GetOrgGameEndpoint();
     FString URL = BaseURL + Id + "/plugins/games";
     return URL;
 }
 
 FString UPOGRSubsystem::ConstructGameDetailURL(const FString& Id)
 {
-    FString BaseURL = FString("https://api-stage.pogr.io/v1//games//plugin/");
+    FString BaseURL = POGRSettings->GetOrgGameDataEndpoint();
     FString URL = BaseURL + Id;
     return URL;
 }
@@ -1054,3 +1113,11 @@ void UPOGRSubsystem::SetGameOption(FString GameValue)
         }
     }
 }
+
+/*
+* Async function with a association ID to create a init {association_id}
+* ReStructure the Project as per the Git Repo Shared over the Discord
+* Readme and Commenting Required
+* Look and make submodules of the codebase and make it readable.
+* 
+*/

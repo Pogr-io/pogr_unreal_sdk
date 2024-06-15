@@ -43,7 +43,10 @@ public:
 	void LogOut();
 
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
-	void CreateSession(const FString& ClientId, const FString& BuildId, const FString& AssociationId);
+	void CreateSessionWithAssociationId(const FString& ClientId, const FString& BuildId, const FString& AssociationId);
+
+	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
+	void CreateSessionWithTokken(const FString& ClientId, const FString& BuildId, const FString& JwtToken);
 
 	UFUNCTION(BlueprintCallable, Category = "POGR Subsystem")
 	void DestroySession(const FString& SessionID);
