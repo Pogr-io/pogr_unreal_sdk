@@ -37,7 +37,6 @@ void UPOGRSubsystem::CreateSessionWithAssociationId(const FString& ClientId, con
     TSharedRef<FJsonObject> RequestObj = MakeShared<FJsonObject>();
 
     RequestObj->SetStringField("association_id", AssociationId);
-    // RequestObj->SetHeader() //Authorization Required in the header. {Lookout for the comment under the File}
 
     FString RequestBody;
     TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&RequestBody);
@@ -1113,11 +1112,3 @@ void UPOGRSubsystem::SetGameOption(FString GameValue)
         }
     }
 }
-
-/*
-* Async function with a association ID to create a init {association_id}
-* ReStructure the Project as per the Git Repo Shared over the Discord
-* Readme and Commenting Required
-* Look and make submodules of the codebase and make it readable.
-* 
-*/
