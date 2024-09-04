@@ -31,3 +31,11 @@ Once you install the Houdini Engine plug-in, you can verify it's loaded properly
 
 # Feedback
 Please send bug reports, feature requests and questions to [POGR support](Please Add A link Here)
+
+# Blueprints
+
+Below is the example of how to use this plugin for payload capture in your blueprints/scripts:
+
+<img src="Resources/Data.PNG">
+
+<img src="Resources/Logs.PNG">
